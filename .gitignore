@@ -26,3 +26,8 @@ replay_pid*
 /src/main/resources/application.yaml
 /build/
 .gradle/
+
+.gradle/
+build/
+bin/
+*.lock
