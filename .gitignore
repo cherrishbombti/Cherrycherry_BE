@@ -174,4 +174,8 @@ sketch
 .history
 .ionide
 
+.env
+.yaml
+.yml
+application.yaml
 # End of https://www.toptal.com/developers/gitignore/api/java,react,intellij,visualstudiocode
