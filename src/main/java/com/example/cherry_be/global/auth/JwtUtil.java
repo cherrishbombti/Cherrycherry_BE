@@ -36,20 +36,9 @@ public class JwtUtil {
                 .compact();
     }
 
-    /**
-     * 3. 나중에 프론트가 토큰을 가져왔을 때, 토큰 안에서 아이디(loginId)를 꺼내는 메서드
-     */
-    public String getLoginId(String token) {
-        return Jwts.parser()
-                .verifyWith(secretKey)
-                .build()
-                .parseSignedClaims(token)
-                .getPayload()
-                .get("loginId", String.class);
-    }
 
     /**
-     * 4. 프론트가 가져온 토큰이 가짜인지, 만료되었는지 검사하는 메서드
+     * 3. 프론트가 가져온 토큰이 가짜인지, 만료되었는지 검사하는 메서드
      */
     public boolean validateToken(String token) {
         try {
@@ -59,4 +48,18 @@ public class JwtUtil {
             return false; // 문제 있는 토큰이면 false
         }
     }
+
+    /**
+     * 4. 나중에 프론트가 토큰을 가져왔을 때, 토큰 안에서 기관 아이디(orgId)를 꺼내는 메서드
+     */
+    public String getOrgId(String token) {
+        return Jwts.parser()
+                .verifyWith(secretKey)
+                .build()
+                .parseSignedClaims(token)
+                .getPayload()
+                .get("orgId", String.class); // 👈 "loginId" 대신 "orgId"로 변경!
+    }
+
+
 }

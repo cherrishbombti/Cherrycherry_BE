@@ -178,4 +178,5 @@ sketch
 .yaml
 .yml
 application.yaml
+build/
 # End of https://www.toptal.com/developers/gitignore/api/java,react,intellij,visualstudiocode
