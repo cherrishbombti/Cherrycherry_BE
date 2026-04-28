@@ -1,74 +1,90 @@
 package com.example.cherry_be.domain.user.service.social;
 
+import com.example.cherry_be.domain.user.dto.UserDto;
 import com.example.cherry_be.domain.user.helper.constants.SocialLoginType;
+import com.example.cherry_be.domain.user.service.social.SocialOauth;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value; // 롬복 Value 대신 이걸로!
-import org.springframework.http.HttpStatus; // 추가
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.*;
+import org.springframework.security.oauth2.client.registration.ClientRegistration;
+import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 @Component
 @RequiredArgsConstructor
 public class GoogleOauth implements SocialOauth {
-
-
-    @Value("${sns.google.url}")
-    private String GOOGLE_SNS_BASE_URL;
-
-    @Value("${sns.google.client.id}")
-    private String GOOGLE_SNS_CLIENT_ID;
-
-    @Value("${sns.google.callback.url}")
-    private String GOOGLE_SNS_CALLBACK_URL;
-
-    @Value("${sns.google.client.secret}")
-    private String GOOGLE_SNS_CLIENT_SECRET;
-
-    @Value("${sns.google.token.url}")
-    private String GOOGLE_SNS_TOKEN_BASE_URL;
+    private final ObjectMapper objectMapper;
+    private final ClientRegistrationRepository clientRegistrationRepository;
 
     @Override
     public String getOauthRedirectURL() {
-        Map<String, Object> params = new HashMap<>();
-        params.put("scope", "profile");
-        params.put("response_type", "code");
-        params.put("client_id", GOOGLE_SNS_CLIENT_ID);
-        params.put("redirect_uri", GOOGLE_SNS_CALLBACK_URL);
-
-        String parameterString = params.entrySet().stream()
-                .map(x -> x.getKey() + "=" + x.getValue())
-                .collect(Collectors.joining("&"));
-
-        return GOOGLE_SNS_BASE_URL + "?" + parameterString;
+        ClientRegistration google = clientRegistrationRepository.findByRegistrationId("google");
+        return google.getProviderDetails().getAuthorizationUri()
+                + "?client_id=" + google.getClientId()
+                + "&redirect_uri=" + google.getRedirectUri()
+                + "&response_type=code"
+                + "&scope=" + String.join(" ", google.getScopes());
     }
 
     @Override
     public String requestAccessToken(String code) {
+        ClientRegistration google = clientRegistrationRepository.findByRegistrationId("google");
         RestTemplate restTemplate = new RestTemplate();
 
-        Map<String, Object> params = new HashMap<>();
+        Map<String, String> params = new HashMap<>();
         params.put("code", code);
-        params.put("client_id", GOOGLE_SNS_CLIENT_ID);
-        params.put("client_secret", GOOGLE_SNS_CLIENT_SECRET);
-        params.put("redirect_uri", GOOGLE_SNS_CALLBACK_URL);
+        params.put("client_id", google.getClientId());
+        params.put("client_secret", google.getClientSecret());
+        params.put("redirect_uri", google.getRedirectUri());
         params.put("grant_type", "authorization_code");
 
-        ResponseEntity<String> responseEntity = restTemplate.postForEntity(GOOGLE_SNS_TOKEN_BASE_URL, params, String.class);
+        ResponseEntity<String> responseEntity = restTemplate.postForEntity(google.getProviderDetails().getTokenUri(), params, String.class);
 
-        if (responseEntity.getStatusCode() == HttpStatus.OK) {
-            return responseEntity.getBody();
-        }
-        return "구글 로그인 요청 처리 실패";
+        return (responseEntity.getStatusCode() == HttpStatus.OK) ? responseEntity.getBody() : "구글 토큰 요청 실패";
     }
 
-    // 4. 인터페이스에서 약속한 type() 메서드 구현
+    @Override
+    public String getUserInfo(String accessToken) {
+        ClientRegistration google = clientRegistrationRepository.findByRegistrationId("google");
+        RestTemplate restTemplate = new RestTemplate();
+
+        // 1. 헤더 설정: Bearer 토큰 주입
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(accessToken);
+
+        HttpEntity<String> entity = new HttpEntity<>(headers);
+
+        // 2. 유저 정보 API 호출 (GET)
+        ResponseEntity<String> response = restTemplate.exchange(
+                google.getProviderDetails().getUserInfoEndpoint().getUri(),
+                HttpMethod.GET,
+                entity,
+                String.class
+        );
+
+        return (response.getStatusCode() == HttpStatus.OK) ? response.getBody() : "구글 유저 정보 요청 실패";
+    }
+
     @Override
     public SocialLoginType type() {
         return SocialLoginType.GOOGLE;
+    }
+
+    public UserDto parseUserInfo(String userInfoJson) throws JsonProcessingException {
+        JsonNode jsonNode = objectMapper.readTree(userInfoJson);
+
+        return UserDto.builder()
+                .oauthProvider("GOOGLE")
+                .oauthEmail(jsonNode.get("email").asText())
+                .name(jsonNode.get("name").asText())
+                .cellNum(null) // 구글은 기본적으로 전화번호를 주지 않음
+                .build();
     }
 }

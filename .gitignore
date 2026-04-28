@@ -174,48 +174,11 @@ sketch
 .history
 .ionide
 
-# End of https://www.toptal.com/developers/gitignore/api/java,react,intellij,visualstudiocode
-
-/src/main/resources/application.yaml
-/build/
-.gradle/
-
-.gradle/
+.env
+.yaml
+.yml
+application.yaml
 build/
-bin/
-*.lock
-### react ###
-.DS_*
-logs
-**/*.backup.*
-**/*.back.*
-
-node_modules
-bower_components
-
-*.sublime*
-
-psd
-thumb
-sketch
-
-### VisualStudioCode ###
-.vscode/*
-!.vscode/settings.json
-!.vscode/tasks.json
-!.vscode/launch.json
-!.vscode/extensions.json
-!.vscode/*.code-snippets
-
-# Local History for Visual Studio Code
-.history/
-
-# Built Visual Studio Code Extensions
-*.vsix
-
-### VisualStudioCode Patch ###
-# Ignore all local history of files
-.history
-.ionide
-
+.gradle/
 # End of https://www.toptal.com/developers/gitignore/api/java,react,intellij,visualstudiocode
+
