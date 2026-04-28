@@ -1,5 +1,4 @@
-package com.example.cherry_be.global.config;
-
+package com.example.cherry_be.global.config; // 패키지 경로 확인
 import java.util.List;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -32,7 +31,7 @@ public class SecurityConfig {
 
     // 2. 전체적인 보안 규칙 설정
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
 
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
@@ -54,6 +53,16 @@ public class SecurityConfig {
                         .requestMatchers("/api/org/signup", "/api/org/login").permitAll()
                         // 그 외의 모든 요청은 토큰 인증을 거쳐야 함
                         .anyRequest().authenticated()
+                        .requestMatchers("/auth/**", "/login/**","/error", "/favicon.ico","/api/v1/**").permitAll() // 소셜 로그인 관련 경로는 모두 허용
+                        .anyRequest().authenticated() // 나머지는 인증 필요
+                )
+                .oauth2Login(oauth2 -> oauth2
+                        .defaultSuccessUrl("/", true)
+                )
+
+                .formLogin(form -> form
+                        .loginPage("/login")
+                        .permitAll()
                 );
 
         return http.build();
@@ -77,3 +86,4 @@ public class SecurityConfig {
     }
 
 }
+
