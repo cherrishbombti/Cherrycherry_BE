@@ -5,22 +5,24 @@ import com.example.cherry_be.domain.user.helper.constants.SocialLoginType;
 import com.example.cherry_be.domain.user.service.social.SocialOauth;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.*;
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
-import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 
 import java.util.HashMap;
 import java.util.Map;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class GoogleOauth implements SocialOauth {
-    private final ObjectMapper objectMapper;
+    //private final ObjectMapper objectMapper;
     private final ClientRegistrationRepository clientRegistrationRepository;
 
     @Override
@@ -31,6 +33,7 @@ public class GoogleOauth implements SocialOauth {
                 + "&redirect_uri=" + google.getRedirectUri()
                 + "&response_type=code"
                 + "&scope=" + String.join(" ", google.getScopes());
+
     }
 
     @Override
@@ -38,6 +41,7 @@ public class GoogleOauth implements SocialOauth {
         ClientRegistration google = clientRegistrationRepository.findByRegistrationId("google");
         RestTemplate restTemplate = new RestTemplate();
 
+        ObjectMapper objectMapper = new ObjectMapper();
         Map<String, String> params = new HashMap<>();
         params.put("code", code);
         params.put("client_id", google.getClientId());
@@ -46,8 +50,19 @@ public class GoogleOauth implements SocialOauth {
         params.put("grant_type", "authorization_code");
 
         ResponseEntity<String> responseEntity = restTemplate.postForEntity(google.getProviderDetails().getTokenUri(), params, String.class);
+        if (responseEntity.getStatusCode() == HttpStatus.OK) {
+            try {
+                // 🔥 통째로 받은 JSON 문자열을 파싱합니다.
+                JsonNode jsonNode = objectMapper.readTree(responseEntity.getBody());
+                // 🔥 JSON 구조 중에서 "access_token"의 값만 쏙 빼냅니다.
+                return jsonNode.get("access_token").asText();
+            } catch (Exception e) {
+                log.error("구글 엑세스 토큰 파싱 에러", e);
+                throw new RuntimeException("구글 엑세스 토큰 파싱 실패");
+            }
+        }
+        return "구글 토큰 요청 실패";
 
-        return (responseEntity.getStatusCode() == HttpStatus.OK) ? responseEntity.getBody() : "구글 토큰 요청 실패";
     }
 
     @Override
@@ -78,13 +93,14 @@ public class GoogleOauth implements SocialOauth {
     }
 
     public UserDto parseUserInfo(String userInfoJson) throws JsonProcessingException {
+        ObjectMapper objectMapper = new ObjectMapper();
         JsonNode jsonNode = objectMapper.readTree(userInfoJson);
 
         return UserDto.builder()
                 .oauthProvider("GOOGLE")
                 .oauthEmail(jsonNode.get("email").asText())
                 .name(jsonNode.get("name").asText())
-                .cellNum(null) // 구글은 기본적으로 전화번호를 주지 않음
+                .cellNum(null)
                 .build();
     }
 }
