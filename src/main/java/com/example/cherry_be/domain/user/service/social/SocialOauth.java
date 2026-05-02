@@ -1,6 +1,8 @@
 package com.example.cherry_be.domain.user.service.social;
 
+import com.example.cherry_be.domain.user.dto.UserDto;
 import com.example.cherry_be.domain.user.helper.constants.SocialLoginType;
+import com.fasterxml.jackson.core.JsonProcessingException;
 
 public interface SocialOauth {
     String getOauthRedirectURL();
@@ -8,4 +10,5 @@ public interface SocialOauth {
     String getUserInfo(String accessToken);
     // 하위 클래스(Google, Kakao)가 "나는 누구다"라고 직접 구현하게 합니다.
     SocialLoginType type();
+    UserDto parseUserInfo(String userInfoJson) throws JsonProcessingException;
 }

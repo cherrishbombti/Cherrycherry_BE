@@ -15,7 +15,7 @@ public class UserService {
     private final UserRepository userRepository;
 
     @Transactional
-    public User saveOrUpdate(UserDto userDto) {
+    public User loginOrSignup(UserDto userDto) {
         return userRepository.findByOauthEmail(userDto.getOauthEmail())
                 .orElseGet(() -> {
                     User newUser = User.builder()

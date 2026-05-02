@@ -17,7 +17,7 @@ public class UserController {
     // 소셜 로그인 후 정보를 저장하거나 로그인 처리하는 엔드포인트
     @PostMapping("/auth")
     public ResponseEntity<User> login(@RequestBody UserDto userDto) {
-        User user = userService.saveOrUpdate(userDto);
+        User user = userService.loginOrSignup(userDto);
         return ResponseEntity.ok(user);
     }
 }
