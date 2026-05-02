@@ -21,14 +21,12 @@ public class OauthService {
     private final HttpServletResponse response;
 
 
-    public void authorize(SocialLoginType socialLoginType) {
+    // 반환 타입을 void에서 String으로 변경!
+    public String authorize(SocialLoginType socialLoginType) {
         SocialOauth socialOauth = this.findSocialOauthByType(socialLoginType);
-        String redirectURL = socialOauth.getOauthRedirectURL();
-        try {
-            response.sendRedirect(redirectURL);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+
+        // 복잡한 redirect 로직 싹 빼고, 깔끔하게 주소만 만들어서 리턴!
+        return socialOauth.getOauthRedirectURL();
     }
 
 

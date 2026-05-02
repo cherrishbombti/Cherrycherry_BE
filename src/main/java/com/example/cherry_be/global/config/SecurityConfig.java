@@ -5,6 +5,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configuration.WebSecurityCustomizer;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -52,7 +53,6 @@ public class SecurityConfig {
                         .requestMatchers("/api/org/login", "/api/org/signup").permitAll() // ✅ 구체적인 경로를 먼저 선언
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/oauth2/**", "/login/oauth2/code/**").permitAll()
-
                         .anyRequest().authenticated() // ✅ '나머지 모든 요청'은 반드시 맨 마지막에 선언
                 );
 
@@ -74,6 +74,12 @@ public class SecurityConfig {
         // 모든 경로("/**")에 대해 위에서 만든 규칙을 적용합니다.
         source.registerCorsConfiguration("/**", configuration);
         return source;
+    }
+
+    @Bean
+    public WebSecurityCustomizer webSecurityCustomizer() {
+        // 파비콘이나 에러 페이지 같은 정적 리소스는 시큐리티 필터 자체를 아예 타지 않도록 '무시(ignore)' 합니다.
+        return (web) -> web.ignoring().requestMatchers("/favicon.ico", "/error");
     }
 
 }
