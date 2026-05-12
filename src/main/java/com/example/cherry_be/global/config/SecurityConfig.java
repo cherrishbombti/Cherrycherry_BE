@@ -49,21 +49,15 @@ public class SecurityConfig {
 
                 // API 주소별 접근 권한 설정
                 .authorizeHttpRequests(auth -> auth
-                        // 로그인, 회원가입 관련 API는 모두에게 접근 허용
-                        .requestMatchers("/api/org/signup", "/api/org/login").permitAll()
-                        // 그 외의 모든 요청은 토큰 인증을 거쳐야 함
-                        .anyRequest().authenticated()
-                        .requestMatchers("/auth/**", "/login/**","/error", "/favicon.ico","/api/v1/**").permitAll() // 소셜 로그인 관련 경로는 모두 허용
-                        .anyRequest().authenticated() // 나머지는 인증 필요
-                )
-                .oauth2Login(oauth2 -> oauth2
-                        .defaultSuccessUrl("/", true)
+                    .requestMatchers("/api/org/login", "/api/org/signup").permitAll() // ✅ 구체적인 경로를 먼저 선언
+                    .requestMatchers("/auth/**").permitAll()
+                    .anyRequest().authenticated() // ✅ '나머지 모든 요청'은 반드시 맨 마지막에 선언
                 )
 
-                .formLogin(form -> form
-                        .loginPage("/login")
-                        .permitAll()
+                .oauth2Login(oauth2 -> oauth2
+                        .defaultSuccessUrl("/", true)
                 );
+
 
         return http.build();
     }

@@ -41,6 +41,12 @@ dependencies {
 
 	// MariaDB의존성 추가
 	runtimeOnly 'org.mariadb.jdbc:mariadb-java-client'
+
+    implementation 'io.github.cdimascio:dotenv-java:3.0.0'
+
+    implementation 'org.springframework.boot:spring-boot-starter-oauth2-client'
+
+    implementation 'com.fasterxml.jackson.core:jackson-databind'
 }
 
 tasks.named('test') {
