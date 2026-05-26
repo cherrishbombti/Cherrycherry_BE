@@ -10,6 +10,7 @@ import com.example.cherry_be.global.auth.JwtUtil;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -28,7 +29,8 @@ public class OauthController {
     private final JwtUtil jwtUtil;
     private final MemberRepository memberRepository;
 
-    private static final String FRONTEND_REDIRECT_URL = "http://localhost:5173/oauth/callback";
+    @Value("${frontend.redirect-url}")
+    private String frontendRedirectUrl;
 
     /**
      * [GET] 소셜 로그인 창으로 리다이렉트
@@ -66,7 +68,6 @@ public class OauthController {
         LoginResult result = userService.loginOrSignup(userInfo);
         log.info(">> [4] DB 저장/조회 완료 :: 회원 이름 = {}", result.getUser().getName());
 
-        // ✅ 피보호자 등록 여부로 isNewUser 판단
         boolean hasWard = memberRepository.findByUser(result.getUser()).isPresent();
         boolean needsWardRegistration = !hasWard;
         log.info(">> [5] 피보호자 등록 여부 = {}, 등록 필요 = {}", hasWard, needsWardRegistration);
@@ -74,7 +75,7 @@ public class OauthController {
         String jwtToken = jwtUtil.createToken(result.getUser().getOauthEmail(), "ROLE_USER");
         log.info(">> [6] JWT 토큰 발급 완료");
 
-        String redirectUrl = FRONTEND_REDIRECT_URL
+        String redirectUrl = frontendRedirectUrl
                 + "?token=" + jwtToken
                 + "&isNewUser=" + needsWardRegistration;
 

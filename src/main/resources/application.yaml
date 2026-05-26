@@ -76,3 +76,6 @@ logging:
   level:
     org.springframework.security.oauth2: DEBUG
     # 인증 성공 후 유저 정보를 불러오는 과정을 상세히 보여줍니다.
+
+frontend:
+  redirect-url: ${FRONTEND_REDIRECT_URL:http://localhost:5173/oauth/callback}

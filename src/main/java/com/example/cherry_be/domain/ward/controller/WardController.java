@@ -2,6 +2,7 @@ package com.example.cherry_be.domain.ward.controller;
 
 import com.example.cherry_be.domain.ward.dto.*;
 import com.example.cherry_be.domain.ward.service.WardService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -18,11 +19,12 @@ public class WardController {
 
     /**
      * [POST] /api/wards/me — 피보호자 최초 등록
+     * @Valid 로 DTO 단에서 MAC 주소, 전화번호 형식 사전 검증
      */
     @PostMapping("/me")
     public ResponseEntity<String> registerWard(
             Authentication authentication,
-            @RequestBody WardRegisterRequest request) {
+            @Valid @RequestBody WardRegisterRequest request) {
         String oauthEmail = authentication.getName();
         Long wardId = wardService.registerWard(oauthEmail, request);
         return ResponseEntity.ok("피보호자 등록 완료. ID: " + wardId);
