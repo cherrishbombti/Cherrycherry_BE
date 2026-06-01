@@ -44,13 +44,16 @@ public class Member {
     private String address;
 
     // 집이나 핸드폰 번호
-    private Long contact;
+    private String contact;
+
+    // 보호자와의 관계 (어머니, 아버지 등)
+    private String relationship;
 
     // 라즈베리파이 고유 ID (pi_node_01 같은 값)
     @Column(name = "device_mac", unique = true)
     private String deviceMac;
 
-    // 현재 상태 (SAFE, WARNING, DANGER)
+    // 현재 상태 (SAFE, WARNING, EMERGENCY)
     @Enumerated(EnumType.STRING)
     private MemberStatus status;
 
@@ -67,15 +70,16 @@ public class Member {
 
     @Builder
     public Member(Organization organization, User user, String name, Long age,
-                      String address, Long contact, String deviceMac) {
+                  String address, String contact, String relationship, String deviceMac) {
         this.organization = organization;
         this.user = user;
         this.name = name;
         this.age = age;
         this.address = address;
         this.contact = contact;
+        this.relationship = relationship;
         this.deviceMac = deviceMac;
-        this.status = MemberStatus.SAFE;   // 등록 시 기본값은 SAFE
+        this.status = MemberStatus.SAFE;
         this.vibrator = true;
         this.radar = true;
         this.thermal = true;
@@ -84,7 +88,7 @@ public class Member {
 
     // 라즈베리파이 데이터 수신 시 상태 업데이트
     public void updateFromDevice(MemberStatus status,
-                                  Boolean vibrator, Boolean radar, Boolean thermal) {
+                                 Boolean vibrator, Boolean radar, Boolean thermal) {
         this.status = status;
         this.vibrator = vibrator;
         this.radar = radar;

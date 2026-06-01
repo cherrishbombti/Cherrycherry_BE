@@ -30,7 +30,7 @@ public class MemberSummaryResponse {
             this.total   = members.size();
             this.safe    = (int) members.stream().filter(m -> m.getStatus() == MemberStatus.SAFE).count();
             this.warning = (int) members.stream().filter(m -> m.getStatus() == MemberStatus.WARNING).count();
-            this.danger  = (int) members.stream().filter(m -> m.getStatus() == MemberStatus.DANGER).count();
+            this.danger  = (int) members.stream().filter(m -> m.getStatus() == MemberStatus.EMERGENCY).count();
         }
     }
 
@@ -41,7 +41,7 @@ public class MemberSummaryResponse {
         private final String name;
         private final Long age;
         private final String address;
-        private final Long contact;
+        private final String contact;
         private final MemberStatus status;
         private final Boolean vibrator;
         private final Boolean radar;

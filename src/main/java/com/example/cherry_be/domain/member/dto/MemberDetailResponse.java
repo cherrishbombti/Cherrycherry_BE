@@ -13,7 +13,7 @@ public class MemberDetailResponse {
     private final String name;
     private final Long age;
     private final String address;
-    private final Long contact;
+    private final String contact;
     private final String deviceMac;
     private final MemberStatus status;
     private final Boolean vibrator;

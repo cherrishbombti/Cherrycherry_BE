@@ -67,7 +67,7 @@ public class MemberService {
     @Transactional(readOnly = true)
     public List<MemberSummaryResponse.MemberInfo> getEmergencies(String orgId) {
         Organization organization = findOrganization(orgId);
-        List<Member> dangers = memberRepository.findByOrganizationAndStatus(organization, MemberStatus.DANGER);
+        List<Member> dangers = memberRepository.findByOrganizationAndStatus(organization, MemberStatus.EMERGENCY);
         return dangers.stream().map(MemberSummaryResponse.MemberInfo::new).toList();
     }
 
