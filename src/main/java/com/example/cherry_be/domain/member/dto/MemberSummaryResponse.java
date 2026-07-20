@@ -1,6 +1,7 @@
 package com.example.cherry_be.domain.member.dto;
 
 import com.example.cherry_be.domain.member.entity.Member;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.example.cherry_be.domain.member.entity.MemberStatus;
 import lombok.Getter;
 
@@ -41,6 +42,7 @@ public class MemberSummaryResponse {
         private final String name;
         private final Long age;
         private final String address;
+        @JsonProperty("phone")
         private final String contact;
         private final MemberStatus status;
         private final Boolean vibrator;

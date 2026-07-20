@@ -1,7 +1,10 @@
 package com.example.cherry_be.domain.organization.service;
 
 import com.example.cherry_be.domain.organization.entity.Organization;
+import com.example.cherry_be.domain.organization.dto.OrgMeResponse;
 import com.example.cherry_be.domain.organization.repository.OrganizationRepository;
+import com.example.cherry_be.global.exception.CustomException;
+import com.example.cherry_be.global.exception.ErrorCode;
 import com.example.cherry_be.global.auth.JwtUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -67,6 +70,18 @@ public class OrganizationService {
         // 3. 로그인 성공! JwtUtil 기계를 작동시켜 토큰 발급
         // 기관(관리자)이므로 권한(role)은 "ROLE_ADMIN"으로 고정하여 발급합니다.
         return jwtUtil.createToken(organization.getOrgId(), "ROLE_ADMIN");
+    }
+
+
+    /**
+     * 로그인한 기관(사회복지사) 본인 정보 조회
+     * [GET] /api/org/me
+     */
+    @Transactional(readOnly = true)
+    public OrgMeResponse getMyInfo(String orgId) {
+        Organization organization = organizationRepository.findByOrgId(orgId)
+                .orElseThrow(() -> new CustomException(ErrorCode.ORG_NOT_FOUND));
+        return OrgMeResponse.from(organization);
     }
 
 }

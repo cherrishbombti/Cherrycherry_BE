@@ -2,6 +2,7 @@ package com.example.cherry_be.global.config;
 
 import com.example.cherry_be.global.auth.JwtAuthenticationFilter;
 import com.example.cherry_be.global.auth.JwtUtil;
+import jakarta.servlet.http.HttpServletResponse;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -52,6 +53,12 @@ public class SecurityConfig {
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
+
+                // 미인증/토큰만료/무효 시 403 대신 401 반환 (FE에서 로그인 페이지로 리다이렉트)
+                .exceptionHandling(ex -> ex.authenticationEntryPoint(
+                        (request, response, authException) ->
+                                response.sendError(HttpServletResponse.SC_UNAUTHORIZED)
+                ))
 
                 // API 주소별 접근 권한 설정
                 .authorizeHttpRequests(auth -> auth
