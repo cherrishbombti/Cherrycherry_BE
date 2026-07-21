@@ -65,7 +65,10 @@ public class SecurityConfig {
                         .requestMatchers("/api/org/login", "/api/org/signup").permitAll()
                         .requestMatchers("/api/device/data").permitAll() // 라즈베리파이 인증 없이 허용
                         .requestMatchers("/api/auth/**").permitAll()
-                        .requestMatchers("/oauth2/**", "/login/oauth2/code/**","/api/wards/**").permitAll()
+                        .requestMatchers("/oauth2/**", "/login/oauth2/code/**").permitAll()
+                        // 역할 기반 접근 제어
+                        .requestMatchers("/api/wards/**").hasRole("USER")                 // 보호자(가족)
+                        .requestMatchers("/api/targets/**", "/api/reports/**").hasRole("ADMIN") // 기관(사회복지사)
                         .anyRequest().authenticated()
                 )
 
