@@ -2,6 +2,7 @@ package com.example.cherry_be.global.config;
 
 import com.example.cherry_be.global.auth.JwtAuthenticationFilter;
 import com.example.cherry_be.global.auth.JwtUtil;
+import jakarta.servlet.http.HttpServletResponse;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -53,12 +54,21 @@ public class SecurityConfig {
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
 
+                // 미인증/토큰만료/무효 시 403 대신 401 반환 (FE에서 로그인 페이지로 리다이렉트)
+                .exceptionHandling(ex -> ex.authenticationEntryPoint(
+                        (request, response, authException) ->
+                                response.sendError(HttpServletResponse.SC_UNAUTHORIZED)
+                ))
+
                 // API 주소별 접근 권한 설정
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/org/login", "/api/org/signup").permitAll()
                         .requestMatchers("/api/device/data").permitAll() // 라즈베리파이 인증 없이 허용
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/oauth2/**", "/login/oauth2/code/**").permitAll()
+                        // 역할 기반 접근 제어
+                        .requestMatchers("/api/wards/**").hasRole("USER")                 // 보호자(가족)
+                        .requestMatchers("/api/targets/**", "/api/reports/**").hasRole("ADMIN") // 기관(사회복지사)
                         .anyRequest().authenticated()
                 )
 
@@ -78,6 +88,7 @@ public class SecurityConfig {
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setAllowCredentials(true);
+        configuration.setExposedHeaders(List.of("Authorization")); // 프론트가 응답 헤더의 JWT 읽을 수 있도록
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
