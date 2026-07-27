@@ -3,28 +3,37 @@ package com.example.cherry_be.domain.member.service;
 import com.example.cherry_be.domain.member.dto.MemberDetailResponse;
 import com.example.cherry_be.domain.member.dto.MemberRegisterRequest;
 import com.example.cherry_be.domain.member.dto.MemberSummaryResponse;
+import com.example.cherry_be.domain.log.dto.LogPageResponse;
+import com.example.cherry_be.domain.log.service.LogQueryService;
 import com.example.cherry_be.domain.member.entity.Member;
 import com.example.cherry_be.domain.member.entity.MemberStatus;
 import com.example.cherry_be.domain.member.repository.MemberRepository;
 import com.example.cherry_be.domain.organization.entity.Organization;
 import com.example.cherry_be.domain.organization.repository.OrganizationRepository;
+import com.example.cherry_be.global.exception.CustomException;
+import com.example.cherry_be.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.util.List;
+import org.springframework.data.domain.Pageable;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class MemberService {
 
     private final MemberRepository memberRepository;
     private final OrganizationRepository organizationRepository;
+    private final LogQueryService logQueryService;
 
     // JWT의 orgId로 Organization을 찾는 공통 메서드
     private Organization findOrganization(String orgId) {
         return organizationRepository.findByOrgId(orgId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 기관입니다."));
+                .orElseThrow(() -> new CustomException(ErrorCode.ORG_NOT_FOUND));
     }
 
     /**
@@ -34,7 +43,7 @@ public class MemberService {
     @Transactional
     public Long registerMember(String orgId, MemberRegisterRequest request) {
         if (memberRepository.findByDeviceMac(request.getDeviceMac()).isPresent()) {
-            throw new IllegalArgumentException("이미 등록된 디바이스입니다: " + request.getDeviceMac());
+            throw new CustomException(ErrorCode.DEVICE_ALREADY_EXISTS);
         }
         Organization organization = findOrganization(orgId);
         Member member = Member.builder()
@@ -79,11 +88,14 @@ public class MemberService {
     public MemberDetailResponse getTargetDetail(String orgId, Long targetId) {
         Organization organization = findOrganization(orgId);
         Member member = memberRepository.findById(targetId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 피보호자입니다."));
+                .orElseThrow(() -> new CustomException(ErrorCode.MEMBER_NOT_FOUND));
 
         // 해당 기관 소속인지 검증
-        if (!member.getOrganization().getId().equals(organization.getId())) {
-            throw new IllegalArgumentException("해당 기관의 피보호자가 아닙니다.");
+        if (member.getOrganization() == null
+                || !member.getOrganization().getId().equals(organization.getId())) {
+            // 존재 여부 노출(IDOR) 방지를 위해 "없음"과 동일하게 404 반환
+            log.warn("타 기관 피보호자 접근 시도 - orgId: {}, targetId: {}", orgId, member.getId());
+            throw new CustomException(ErrorCode.MEMBER_NOT_FOUND);
         }
 
         return new MemberDetailResponse(member);
@@ -97,13 +109,37 @@ public class MemberService {
     public void deleteMember(String orgId, Long targetId) {
         Organization organization = findOrganization(orgId);
         Member member = memberRepository.findById(targetId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 피보호자입니다."));
+                .orElseThrow(() -> new CustomException(ErrorCode.MEMBER_NOT_FOUND));
 
         // 해당 기관 소속인지 검증
-        if (!member.getOrganization().getId().equals(organization.getId())) {
-            throw new IllegalArgumentException("해당 기관의 피보호자가 아닙니다.");
+        if (member.getOrganization() == null
+                || !member.getOrganization().getId().equals(organization.getId())) {
+            // 존재 여부 노출(IDOR) 방지를 위해 "없음"과 동일하게 404 반환
+            log.warn("타 기관 피보호자 접근 시도 - orgId: {}, targetId: {}", orgId, member.getId());
+            throw new CustomException(ErrorCode.MEMBER_NOT_FOUND);
         }
 
         memberRepository.delete(member);
     }
+
+    /**
+     * [GET] /api/targets/{targetId}/logs — 특정 피보호자 낙상 이력 조회
+     * 소속 검증 실패 시 존재하지 않는 경우와 동일하게 404 반환
+     */
+    @Transactional(readOnly = true)
+    public LogPageResponse getLogs(String orgId, Long targetId,
+                                   LocalDate from, LocalDate to, Pageable pageable) {
+        Organization organization = findOrganization(orgId);
+        Member member = memberRepository.findById(targetId)
+                .orElseThrow(() -> new CustomException(ErrorCode.MEMBER_NOT_FOUND));
+
+        if (member.getOrganization() == null
+                || !member.getOrganization().getId().equals(organization.getId())) {
+            log.warn("타 기관 피보호자 이력 접근 시도 - orgId: {}, targetId: {}", orgId, targetId);
+            throw new CustomException(ErrorCode.MEMBER_NOT_FOUND);
+        }
+
+        return logQueryService.getLogs(member, from, to, pageable);
+    }
+
 }
