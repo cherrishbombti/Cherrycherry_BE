@@ -24,7 +24,14 @@ public class GlobalExceptionHandler {
         return ErrorResponse.toResponseEntity(ErrorCode.INVALID_INPUT_VALUE);
     }
 
-    // 3. 그 외 짐작하지 못한 모든 예외(500 에러) 처리 (최후의 방어선)
+    // 3. 서비스단 IllegalArgumentException → 400 (미처리 시 500으로 나가는 것 방지)
+    @ExceptionHandler(IllegalArgumentException.class)
+    protected ResponseEntity<ErrorResponse> handleIllegalArgument(IllegalArgumentException e) {
+        log.warn("IllegalArgumentException : {}", e.getMessage());
+        return ErrorResponse.toResponseEntity(ErrorCode.INVALID_INPUT_VALUE);
+    }
+
+    // 4. 그 외 짐작하지 못한 모든 예외(500 에러) 처리 (최후의 방어선)
     @ExceptionHandler(Exception.class)
     protected ResponseEntity<ErrorResponse> handleAllException(Exception e) {
         log.error("Unhandled Exception : {}", e.getMessage(), e);

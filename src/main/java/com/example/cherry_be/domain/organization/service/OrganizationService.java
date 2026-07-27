@@ -1,7 +1,10 @@
 package com.example.cherry_be.domain.organization.service;
 
 import com.example.cherry_be.domain.organization.entity.Organization;
+import com.example.cherry_be.domain.organization.dto.OrgMeResponse;
 import com.example.cherry_be.domain.organization.repository.OrganizationRepository;
+import com.example.cherry_be.global.exception.CustomException;
+import com.example.cherry_be.global.exception.ErrorCode;
 import com.example.cherry_be.global.auth.JwtUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -26,7 +29,7 @@ public class OrganizationService {
     public Long signUp(String orgId, String rawPassword, String name) {
         // 1. 아이디 중복 검사
         if (organizationRepository.existsByOrgId(orgId)) {
-            throw new IllegalArgumentException("이미 사용 중인 로그인 ID 입니다.");
+            throw new CustomException(ErrorCode.ORG_ID_DUPLICATE);
         }
 
         // 2. 비밀번호 암호화 (스프링 시큐리티 필수)
@@ -56,17 +59,29 @@ public class OrganizationService {
 
         // 1. DB에서 아이디 조회 (없으면 예외 발생)
         Organization organization = organizationRepository.findByOrgId(orgId)
-                .orElseThrow(() -> new IllegalArgumentException("가입되지 않은 아이디입니다."));
+                .orElseThrow(() -> new CustomException(ErrorCode.LOGIN_FAILED));
 
         // 2. 비밀번호 검증 (입력한 비번과 DB의 암호화된 비번 비교)
         // passwordEncoder.matches() 가 내부적으로 안전하게 비교해 줍니다.
         if (!passwordEncoder.matches(rawPassword, organization.getPassword())) {
-            throw new IllegalArgumentException("비밀번호가 일치하지 않습니다.");
+            throw new CustomException(ErrorCode.LOGIN_FAILED);
         }
 
         // 3. 로그인 성공! JwtUtil 기계를 작동시켜 토큰 발급
         // 기관(관리자)이므로 권한(role)은 "ROLE_ADMIN"으로 고정하여 발급합니다.
         return jwtUtil.createToken(organization.getOrgId(), "ROLE_ADMIN");
+    }
+
+
+    /**
+     * 로그인한 기관(사회복지사) 본인 정보 조회
+     * [GET] /api/org/me
+     */
+    @Transactional(readOnly = true)
+    public OrgMeResponse getMyInfo(String orgId) {
+        Organization organization = organizationRepository.findByOrgId(orgId)
+                .orElseThrow(() -> new CustomException(ErrorCode.ORG_NOT_FOUND));
+        return OrgMeResponse.from(organization);
     }
 
 }

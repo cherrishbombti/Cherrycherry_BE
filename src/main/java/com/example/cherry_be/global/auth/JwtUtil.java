@@ -1,7 +1,8 @@
-package com.example.cherry_be.global.auth; // 패키지명은 본인 프로젝트에 맞게 확인해 주세요!
+package com.example.cherry_be.global.auth;
 
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -9,63 +10,60 @@ import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
 
-@Component // 스프링에게 "이거 공용 도구니까 네가 잘 관리해 줘!" 라고 맡기는 어노테이션
+@Slf4j
+@Component
 public class JwtUtil {
 
     private final SecretKey secretKey;
     private final Long expirationTime;
 
-    // 1. yml에 적어둔 비밀키와 만료시간을 가져와서 세팅합니다.
     public JwtUtil(@Value("${jwt.secret}") String secret,
-            @Value("${jwt.expiration-time}") Long expirationTime) {
-        // yml의 평범한 문자열 -> JWT 전용 '암호화 열쇠'
+                   @Value("${jwt.expiration-time}") Long expirationTime) {
         this.secretKey = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
         this.expirationTime = expirationTime;
     }
 
-    /**
-     * 2. 로그인 성공 시 토큰을 생성하는 메서드
-     */
+    // subject에도 loginId 세팅
     public String createToken(String loginId, String role) {
         return Jwts.builder()
-                .claim("orgId", loginId) // 토큰에 아이디 담기
-                .claim("role", role)       // 토큰에 권한 담기 (예: ROLE_ADMIN)
-                .issuedAt(new Date(System.currentTimeMillis())) // 발급 시간
-                .expiration(new Date(System.currentTimeMillis() + expirationTime)) // 만료 시간
+                .subject(loginId)        // ← subject에 세팅
+                .claim("orgId", loginId)
+                .claim("role", role)
+                .issuedAt(new Date(System.currentTimeMillis()))
+                .expiration(new Date(System.currentTimeMillis() + expirationTime))
                 .signWith(secretKey)
                 .compact();
     }
 
-
-    /**
-     * 3. 프론트가 가져온 토큰이 가짜인지, 만료되었는지 검사하는 메서드
-     */
     public boolean validateToken(String token) {
         try {
             Jwts.parser().verifyWith(secretKey).build().parseSignedClaims(token);
-            return true; // 정상 토큰이면 true
+            return true;
         } catch (Exception e) {
-            return false; // 문제 있는 토큰이면 false
+            log.warn("JWT 검증 실패: {}", e.getMessage());
+            return false;
         }
     }
 
-    /**
-     * 4. 나중에 프론트가 토큰을 가져왔을 때, 토큰 안에서 기관 아이디(orgId)를 꺼내는 메서드
-     */
+    // subject로 꺼내기 (org/user 공통으로 사용)
+    public String getSubject(String token) {
+        return Jwts.parser()
+                .verifyWith(secretKey)
+                .build()
+                .parseSignedClaims(token)
+                .getPayload()
+                .getSubject();
+    }
+
     public String getOrgId(String token) {
         return Jwts.parser()
                 .verifyWith(secretKey)
                 .build()
                 .parseSignedClaims(token)
                 .getPayload()
-                .get("orgId", String.class); // 👈 "loginId" 대신 "orgId"로 변경!
+                .get("orgId", String.class);
     }
 
-
-
-    /**
-     * 5. 토큰에서 권한(role)을 꺼내는 메서드
-     */
     public String getRole(String token) {
         return Jwts.parser()
                 .verifyWith(secretKey)

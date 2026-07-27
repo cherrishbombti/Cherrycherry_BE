@@ -7,6 +7,8 @@ import com.example.cherry_be.domain.log.repository.LogRepository;
 import com.example.cherry_be.domain.member.entity.Member;
 import com.example.cherry_be.domain.member.entity.MemberStatus;
 import com.example.cherry_be.domain.member.repository.MemberRepository;
+import com.example.cherry_be.global.exception.CustomException;
+import com.example.cherry_be.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,11 +25,15 @@ public class DeviceService {
 
         // 1. device_id로 피보호자 찾기 (없으면 예외)
         Member member = memberRepository.findByDeviceMac(request.getDeviceId())
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "등록되지 않은 디바이스입니다: " + request.getDeviceId()));
+                .orElseThrow(() -> new CustomException(ErrorCode.DEVICE_NOT_REGISTERED));
 
-        // 2. 문자열 event_type → MemberStatus enum 변환
-        MemberStatus newStatus = MemberStatus.valueOf(request.getEventType());
+        // 2. 문자열 event_type → MemberStatus enum 변환 (잘못된 값이면 400)
+        MemberStatus newStatus;
+        try {
+            newStatus = MemberStatus.valueOf(request.getEventType());
+        } catch (IllegalArgumentException | NullPointerException e) {
+            throw new CustomException(ErrorCode.INVALID_EVENT_TYPE);
+        }
 
         DeviceDataRequest.SensorStatus sensorStatus = request.getSensorStatus();
         Boolean vibrator = sensorStatus.getVibrator();

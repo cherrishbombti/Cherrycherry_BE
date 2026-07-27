@@ -53,7 +53,7 @@ public class Member {
     @Column(name = "device_mac", unique = true)
     private String deviceMac;
 
-    // 현재 상태 (SAFE, WARNING, EMERGENCY)
+    // 현재 상태 (SAFE, WARNING, DANGER)
     @Enumerated(EnumType.STRING)
     private MemberStatus status;
 

@@ -1,12 +1,14 @@
 package com.example.cherry_be.domain.organization.controller;
 
 import com.example.cherry_be.domain.organization.dto.LoginRequest;
+import com.example.cherry_be.domain.organization.dto.OrgMeResponse;
 import com.example.cherry_be.domain.organization.dto.SignUpRequest;
 import com.example.cherry_be.domain.organization.service.OrganizationService;
 import java.util.HashMap;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 @RestController // 이 클래스가 REST API 안내데스크 역할을 한다고 선언
@@ -49,6 +51,17 @@ public class OrganizationController {
 
         // 3. 성공 상태 코드(200 OK)와 함께 포장된 토큰을 응답으로 보냅니다.
         return ResponseEntity.ok(response);
+    }
+
+
+    /**
+     * 로그인한 기관 본인 정보 조회 API
+     * [GET] /api/org/me
+     */
+    @GetMapping("/me")
+    public ResponseEntity<OrgMeResponse> getMyInfo(Authentication authentication) {
+        String orgId = authentication.getName();
+        return ResponseEntity.ok(organizationService.getMyInfo(orgId));
     }
 
 }
