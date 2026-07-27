@@ -1,13 +1,18 @@
 package com.example.cherry_be.domain.ward.controller;
 
+import com.example.cherry_be.domain.log.dto.LogPageResponse;
 import com.example.cherry_be.domain.ward.dto.*;
 import com.example.cherry_be.domain.ward.service.WardService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -63,4 +68,22 @@ public class WardController {
             @RequestBody WardContactRequest request) {
         return ResponseEntity.ok(wardService.addContact(authentication.getName(), request));
     }
+
+    /**
+     * [GET] /api/wards/me/logs — 낙상 이력 조회
+     * ?page=0&size=20 (기본) 또는 ?from=YYYY-MM-DD&to=YYYY-MM-DD
+     */
+    @GetMapping("/me/logs")
+    public ResponseEntity<LogPageResponse> getLogs(
+            Authentication authentication,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+
+        Pageable pageable = PageRequest.of(page, size);
+        return ResponseEntity.ok(
+                wardService.getLogs(authentication.getName(), from, to, pageable));
+    }
+
 }
