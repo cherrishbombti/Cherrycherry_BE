@@ -55,6 +55,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 SecurityContextHolder.setContext(context);
                 log.info("JWT 필터: SecurityContext 세팅 완료");
             }
+        } else {
+            log.warn("JWT 필터: 토큰 검증 실패 - URI: {}", request.getRequestURI());
         }
 
         filterChain.doFilter(request, response);
