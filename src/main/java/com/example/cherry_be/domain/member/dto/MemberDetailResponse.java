@@ -22,6 +22,8 @@ public class MemberDetailResponse {
     private final Boolean radar;
     private final Boolean thermal;
     private final LocalDateTime lastUpdated;
+    private final Boolean deviceOnline;          // 계산값 (저장하지 않음)
+    private final LocalDateTime deviceLastSeen;  // 서버 수신 시각, 미수신 시 null
 
     public MemberDetailResponse(Member member) {
         this.id          = member.getId();
@@ -35,5 +37,7 @@ public class MemberDetailResponse {
         this.radar       = member.getRadar();
         this.thermal     = member.getThermal();
         this.lastUpdated = member.getLastUpdated();
+        this.deviceOnline   = member.isDeviceOnline();
+        this.deviceLastSeen = member.getDeviceLastSeen();
     }
 }

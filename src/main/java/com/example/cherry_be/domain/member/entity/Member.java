@@ -19,6 +19,9 @@ import java.time.LocalDateTime;
 @Table(name = "member_info")
 public class Member {
 
+    // 온라인 판정 기준 (분) - 협의 후 조정 가능
+    private static final long ONLINE_THRESHOLD_MINUTES = 5;
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -53,7 +56,7 @@ public class Member {
     @Column(name = "device_mac", unique = true)
     private String deviceMac;
 
-    // 현재 상태 (SAFE, WARNING, EMERGENCY)
+    // 현재 상태 (SAFE, WARNING, DANGER)
     @Enumerated(EnumType.STRING)
     private MemberStatus status;
 
@@ -67,6 +70,11 @@ public class Member {
 
     @Column(name = "last_updated")
     private LocalDateTime lastUpdated; // 마지막 Pi 데이터 수신 시각
+
+    // 마지막으로 디바이스 신호를 받은 "서버 수신 시각" (온라인 판정용)
+    // 등록 시점에는 null - 한 번도 신호를 받지 않은 상태와 오프라인을 구분하기 위함
+    @Column(name = "device_last_seen")
+    private LocalDateTime deviceLastSeen;
 
     @Builder
     public Member(Organization organization, User user, String name, Long age,
@@ -84,6 +92,7 @@ public class Member {
         this.radar = true;
         this.thermal = true;
         this.lastUpdated = LocalDateTime.now(); // 등록 시점으로 초기화
+        // deviceLastSeen은 의도적으로 null 유지 (아직 기기 신호를 받은 적 없음)
     }
 
     // 라즈베리파이 데이터 수신 시 상태 업데이트
@@ -93,6 +102,21 @@ public class Member {
         this.vibrator = vibrator;
         this.radar = radar;
         this.thermal = thermal;
-        this.lastUpdated = LocalDateTime.now();
+        // 기기가 보낸 timestamp가 아닌 "서버 수신 시각" 기준으로 고정
+        // (기기 시계가 틀어져도 연결 생존 판정은 정확해야 하므로)
+        LocalDateTime receivedAt = LocalDateTime.now();
+        this.lastUpdated = receivedAt;
+        this.deviceLastSeen = receivedAt;
+    }
+
+    /**
+     * 디바이스 온라인 여부 (저장하지 않고 계산)
+     * - deviceLastSeen이 null이면 false (한 번도 수신 없음 = 연결 대기 중)
+     * - 최근 ONLINE_THRESHOLD_MINUTES 이내 수신이면 true
+     */
+    public boolean isDeviceOnline() {
+        return this.deviceLastSeen != null
+                && this.deviceLastSeen.isAfter(
+                        LocalDateTime.now().minusMinutes(ONLINE_THRESHOLD_MINUTES));
     }
 }
