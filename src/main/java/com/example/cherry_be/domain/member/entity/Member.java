@@ -88,11 +88,13 @@ public class Member {
         this.relationship = relationship;
         this.deviceMac = deviceMac;
         this.status = MemberStatus.SAFE;
-        this.vibrator = true;
-        this.radar = true;
-        this.thermal = true;
+        // 센서값은 기기 신호를 받기 전까지 null 유지
+        // (통신한 적이 없는데 true로 두면 '센서 정상'이라는 근거 없는 사실을 표시하게 됨)
+        this.vibrator = null;
+        this.radar = null;
+        this.thermal = null;
         this.lastUpdated = LocalDateTime.now(); // 등록 시점으로 초기화
-        // deviceLastSeen은 의도적으로 null 유지 (아직 기기 신호를 받은 적 없음)
+        // deviceLastSeen도 동일한 이유로 null 유지 (아직 기기 신호를 받은 적 없음)
     }
 
     // 라즈베리파이 데이터 수신 시 상태 업데이트
