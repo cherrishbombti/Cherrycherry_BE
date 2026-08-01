@@ -49,6 +49,8 @@ public class MemberSummaryResponse {
         private final Boolean radar;
         private final Boolean thermal;
         private final LocalDateTime lastUpdated;
+        private final Boolean deviceOnline;
+        private final LocalDateTime deviceLastSeen;
 
         public MemberInfo(Member member) {
             this.id          = member.getId();
@@ -61,6 +63,8 @@ public class MemberSummaryResponse {
             this.radar       = member.getRadar();
             this.thermal     = member.getThermal();
             this.lastUpdated = member.getLastUpdated();
+            this.deviceOnline   = member.isDeviceOnline();
+            this.deviceLastSeen = member.getDeviceLastSeen();
         }
     }
 }
