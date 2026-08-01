@@ -3,6 +3,8 @@ package com.example.cherry_be.domain.user.service;
 import com.example.cherry_be.domain.user.dto.UserDto;
 import com.example.cherry_be.domain.user.helper.constants.SocialLoginType;
 import com.example.cherry_be.domain.user.service.social.SocialOauth; // 1. SocialOauth 위치 임포트
+import com.example.cherry_be.global.exception.CustomException;
+import com.example.cherry_be.global.exception.ErrorCode;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -50,7 +52,7 @@ public class OauthService {
         return socialOauthList.stream()
                 .filter(x -> x.type() == socialLoginType)
                 .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("알 수 없는 SocialLoginType 입니다."));
+                .orElseThrow(() -> new CustomException(ErrorCode.UNSUPPORTED_SOCIAL_TYPE));
     }
 
     public UserDto getUserInfo(SocialLoginType socialLoginType, String accessToken) {
@@ -63,7 +65,7 @@ public class OauthService {
             // 2. 받아온 JSON을 우리가 쓰기 편한 UserDto로 파싱해서 반환
             return socialOauth.parseUserInfo(userInfoJson);
         } catch (Exception e) {
-            throw new RuntimeException("유저 정보 파싱 중 오류가 발생했습니다.", e);
+            throw new CustomException(ErrorCode.SOCIAL_LOGIN_FAILED);
         }
     }
 

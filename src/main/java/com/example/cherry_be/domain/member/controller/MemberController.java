@@ -1,14 +1,19 @@
 package com.example.cherry_be.domain.member.controller;
 
+import com.example.cherry_be.domain.log.dto.LogPageResponse;
 import com.example.cherry_be.domain.member.dto.MemberDetailResponse;
 import com.example.cherry_be.domain.member.dto.MemberRegisterRequest;
 import com.example.cherry_be.domain.member.dto.MemberSummaryResponse;
 import com.example.cherry_be.domain.member.service.MemberService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -76,4 +81,24 @@ public class MemberController {
         memberService.deleteMember(orgId, targetId);
         return ResponseEntity.ok("피보호자 삭제 완료");
     }
+
+    /**
+     * 특정 피보호자 낙상 이력 조회
+     * [GET] /api/targets/{targetId}/logs
+     * ?page=0&size=20 (기본) 또는 ?from=YYYY-MM-DD&to=YYYY-MM-DD
+     */
+    @GetMapping("/{targetId}/logs")
+    public ResponseEntity<LogPageResponse> getTargetLogs(
+            Authentication authentication,
+            @PathVariable Long targetId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+
+        Pageable pageable = PageRequest.of(page, size);
+        return ResponseEntity.ok(
+                memberService.getLogs(authentication.getName(), targetId, from, to, pageable));
+    }
+
 }

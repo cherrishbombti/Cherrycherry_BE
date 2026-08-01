@@ -3,6 +3,8 @@ package com.example.cherry_be.domain.user.service.social;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.example.cherry_be.domain.user.dto.UserDto;
 import com.example.cherry_be.domain.user.helper.constants.SocialLoginType;
+import com.example.cherry_be.global.exception.CustomException;
+import com.example.cherry_be.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.*;
@@ -58,7 +60,7 @@ public class KakaoOauth implements SocialOauth {
                 return jsonNode.get("access_token").asText();
             } catch (Exception e) {
                 log.error("카카오 엑세스 토큰 파싱 에러", e);
-                throw new RuntimeException("카카오 엑세스 토큰 파싱 실패");
+                throw new CustomException(ErrorCode.SOCIAL_LOGIN_FAILED);
             }
         }
         return "카카오 토큰 요청 실패";

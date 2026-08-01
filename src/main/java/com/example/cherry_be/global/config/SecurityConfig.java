@@ -68,7 +68,7 @@ public class SecurityConfig {
                         .requestMatchers("/oauth2/**", "/login/oauth2/code/**").permitAll()
                         // 역할 기반 접근 제어
                         .requestMatchers("/api/wards/**").hasRole("USER")                 // 보호자(가족)
-                        .requestMatchers("/api/targets/**", "/api/reports/**").hasRole("ADMIN") // 기관(사회복지사)
+                        .requestMatchers("/api/targets/**", "/api/reports/**","/api/org/**").hasRole("ADMIN") // 기관(사회복지사)
                         .anyRequest().authenticated()
                 )
 
