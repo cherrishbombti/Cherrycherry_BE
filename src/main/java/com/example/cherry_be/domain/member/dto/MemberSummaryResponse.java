@@ -48,7 +48,6 @@ public class MemberSummaryResponse {
         private final Boolean vibrator;
         private final Boolean radar;
         private final Boolean thermal;
-        private final LocalDateTime lastUpdated;
         private final Boolean deviceOnline;
         private final LocalDateTime deviceLastSeen;
 
@@ -62,7 +61,6 @@ public class MemberSummaryResponse {
             this.vibrator    = member.getVibrator();
             this.radar       = member.getRadar();
             this.thermal     = member.getThermal();
-            this.lastUpdated = member.getLastUpdated();
             this.deviceOnline   = member.isDeviceOnline();
             this.deviceLastSeen = member.getDeviceLastSeen();
         }
