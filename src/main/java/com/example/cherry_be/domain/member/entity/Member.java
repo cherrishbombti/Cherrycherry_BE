@@ -68,9 +68,6 @@ public class Member {
     @OneToMany(mappedBy = "member", cascade = CascadeType.REMOVE, orphanRemoval = true)
     private List<Log> fallLogs = new ArrayList<>();
 
-    @Column(name = "last_updated")
-    private LocalDateTime lastUpdated; // 마지막 Pi 데이터 수신 시각
-
     // 마지막으로 디바이스 신호를 받은 "서버 수신 시각" (온라인 판정용)
     // 등록 시점에는 null - 한 번도 신호를 받지 않은 상태와 오프라인을 구분하기 위함
     @Column(name = "device_last_seen")
@@ -88,11 +85,12 @@ public class Member {
         this.relationship = relationship;
         this.deviceMac = deviceMac;
         this.status = MemberStatus.SAFE;
-        this.vibrator = true;
-        this.radar = true;
-        this.thermal = true;
-        this.lastUpdated = LocalDateTime.now(); // 등록 시점으로 초기화
-        // deviceLastSeen은 의도적으로 null 유지 (아직 기기 신호를 받은 적 없음)
+        // 센서값은 기기 신호를 받기 전까지 null 유지
+        // (통신한 적이 없는데 true로 두면 '센서 정상'이라는 근거 없는 사실을 표시하게 됨)
+        this.vibrator = null;
+        this.radar = null;
+        this.thermal = null;
+        // deviceLastSeen은 null 유지 (아직 기기 신호를 받은 적 없음)
     }
 
     // 라즈베리파이 데이터 수신 시 상태 업데이트
@@ -104,9 +102,7 @@ public class Member {
         this.thermal = thermal;
         // 기기가 보낸 timestamp가 아닌 "서버 수신 시각" 기준으로 고정
         // (기기 시계가 틀어져도 연결 생존 판정은 정확해야 하므로)
-        LocalDateTime receivedAt = LocalDateTime.now();
-        this.lastUpdated = receivedAt;
-        this.deviceLastSeen = receivedAt;
+        this.deviceLastSeen = LocalDateTime.now();
     }
 
     /**
