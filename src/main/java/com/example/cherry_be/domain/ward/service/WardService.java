@@ -1,6 +1,9 @@
 package com.example.cherry_be.domain.ward.service;
 
 import com.example.cherry_be.domain.log.dto.LogPageResponse;
+import com.example.cherry_be.domain.log.entity.Log;
+import com.example.cherry_be.domain.log.entity.LogType;
+import com.example.cherry_be.domain.log.repository.LogRepository;
 import com.example.cherry_be.domain.log.service.LogQueryService;
 import com.example.cherry_be.domain.member.entity.Member;
 import com.example.cherry_be.domain.member.repository.MemberRepository;
@@ -29,6 +32,7 @@ public class WardService {
     private final MemberRepository memberRepository;
     private final EmergencyContactRepository emergencyContactRepository;
     private final LogQueryService logQueryService;
+    private final LogRepository logRepository;
 
     private User getGuardian(String oauthEmail) {
         return userRepository.findByOauthEmail(oauthEmail)
@@ -132,6 +136,28 @@ public class WardService {
     public LogPageResponse getLogs(String oauthEmail, LocalDate from, LocalDate to, Pageable pageable) {
         Member ward = getWard(getGuardian(oauthEmail));
         return logQueryService.getLogs(ward, from, to, pageable);
+    }
+
+
+    /**
+     * [POST] /api/wards/me/emergency-log — 119 신고 버튼 클릭 이력 저장
+     *
+     * 실제 통화 성공 여부는 서버가 알 수 없으므로 "버튼을 눌렀다"는 사실만 기록한다.
+     * 프론트는 이 API 응답을 기다리지 않고 즉시 통화를 실행하므로,
+     * 여기서 실패하더라도 통화 흐름에는 영향이 없어야 한다.
+     */
+    @Transactional
+    public EmergencyLogResponse addEmergencyLog(String oauthEmail) {
+        Member ward = getWard(getGuardian(oauthEmail));
+
+        Log log = logRepository.save(Log.builder()
+                .member(ward)
+                .organization(ward.getOrganization()) // 보호자 등록 피보호자는 null
+                .status(ward.getStatus())             // 클릭 시점의 상태를 함께 기록
+                .logType(LogType.EMERGENCY_CALL)
+                .build());
+
+        return EmergencyLogResponse.from(log);
     }
 
 }

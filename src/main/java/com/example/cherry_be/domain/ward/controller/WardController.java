@@ -86,4 +86,14 @@ public class WardController {
                 wardService.getLogs(authentication.getName(), from, to, pageable));
     }
 
+
+    /**
+     * [POST] /api/wards/me/emergency-log — 119 신고 버튼 클릭 이력 저장
+     * 요청 본문 없음. 프론트는 응답을 기다리지 말고 즉시 통화를 실행할 것.
+     */
+    @PostMapping("/me/emergency-log")
+    public ResponseEntity<EmergencyLogResponse> addEmergencyLog(Authentication authentication) {
+        return ResponseEntity.ok(wardService.addEmergencyLog(authentication.getName()));
+    }
+
 }
