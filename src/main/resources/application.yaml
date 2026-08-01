@@ -1,4 +1,10 @@
 spring:
+  # 서버 배포 환경(Docker/EC2 등)이 UTC여도 시각이 밀리지 않도록 타임존 고정
+  # LocalDateTime은 타임존 정보를 갖지 않아, JVM 기본 타임존이 바뀌면
+  # 표시 시각과 from/to 날짜 경계가 함께 틀어짐
+  jackson:
+    time-zone: Asia/Seoul
+
   datasource:
     url: ${DB_URL}
     username: ${DB_USERNAME}

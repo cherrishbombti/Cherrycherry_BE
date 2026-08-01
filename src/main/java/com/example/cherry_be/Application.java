@@ -2,10 +2,20 @@ package com.example.cherry_be;
 
 import io.github.cdimascio.dotenv.Dotenv;
 import org.springframework.boot.SpringApplication;
+import jakarta.annotation.PostConstruct;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+
+import java.util.TimeZone;
 
 @SpringBootApplication
 public class Application {
+
+	// LocalDateTime.now()가 참조하는 JVM 기본 타임존을 KST로 고정
+	// (배포 환경이 UTC면 저장·비교·날짜 경계가 모두 9시간 밀림)
+	@PostConstruct
+	public void init() {
+		TimeZone.setDefault(TimeZone.getTimeZone("Asia/Seoul"));
+	}
 
 	public static void main(String[] args) {
 		Dotenv dotenv = Dotenv.configure()
