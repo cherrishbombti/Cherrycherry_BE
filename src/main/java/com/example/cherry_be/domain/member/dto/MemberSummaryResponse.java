@@ -1,6 +1,7 @@
 package com.example.cherry_be.domain.member.dto;
 
 import com.example.cherry_be.domain.member.entity.Member;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.example.cherry_be.domain.member.entity.MemberStatus;
 import lombok.Getter;
 
@@ -30,7 +31,7 @@ public class MemberSummaryResponse {
             this.total   = members.size();
             this.safe    = (int) members.stream().filter(m -> m.getStatus() == MemberStatus.SAFE).count();
             this.warning = (int) members.stream().filter(m -> m.getStatus() == MemberStatus.WARNING).count();
-            this.danger  = (int) members.stream().filter(m -> m.getStatus() == MemberStatus.EMERGENCY).count();
+            this.danger  = (int) members.stream().filter(m -> m.getStatus() == MemberStatus.DANGER).count();
         }
     }
 
@@ -41,12 +42,14 @@ public class MemberSummaryResponse {
         private final String name;
         private final Long age;
         private final String address;
+        @JsonProperty("phone")
         private final String contact;
         private final MemberStatus status;
         private final Boolean vibrator;
         private final Boolean radar;
         private final Boolean thermal;
-        private final LocalDateTime lastUpdated;
+        private final Boolean deviceOnline;
+        private final LocalDateTime deviceLastSeen;
 
         public MemberInfo(Member member) {
             this.id          = member.getId();
@@ -58,7 +61,8 @@ public class MemberSummaryResponse {
             this.vibrator    = member.getVibrator();
             this.radar       = member.getRadar();
             this.thermal     = member.getThermal();
-            this.lastUpdated = member.getLastUpdated();
+            this.deviceOnline   = member.isDeviceOnline();
+            this.deviceLastSeen = member.getDeviceLastSeen();
         }
     }
 }

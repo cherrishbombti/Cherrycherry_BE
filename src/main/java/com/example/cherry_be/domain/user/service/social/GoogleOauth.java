@@ -2,6 +2,8 @@ package com.example.cherry_be.domain.user.service.social;
 
 import com.example.cherry_be.domain.user.dto.UserDto;
 import com.example.cherry_be.domain.user.helper.constants.SocialLoginType;
+import com.example.cherry_be.global.exception.CustomException;
+import com.example.cherry_be.global.exception.ErrorCode;
 import com.example.cherry_be.domain.user.service.social.SocialOauth;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import lombok.RequiredArgsConstructor;
@@ -58,7 +60,7 @@ public class GoogleOauth implements SocialOauth {
                 return jsonNode.get("access_token").asText();
             } catch (Exception e) {
                 log.error("구글 엑세스 토큰 파싱 에러", e);
-                throw new RuntimeException("구글 엑세스 토큰 파싱 실패");
+                throw new CustomException(ErrorCode.SOCIAL_LOGIN_FAILED);
             }
         }
         return "구글 토큰 요청 실패";

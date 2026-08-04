@@ -10,6 +10,7 @@ public enum ErrorCode {
 
     // Common
     INVALID_INPUT_VALUE(HttpStatus.BAD_REQUEST, "C001", "잘못된 입력값입니다."),
+    INVALID_DATE_RANGE(HttpStatus.BAD_REQUEST, "C003", "조회 기간이 올바르지 않습니다. (from이 to보다 늦을 수 없습니다)"),
     INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "C002", "서버 내부에서 에러가 발생했습니다."),
 
     // Organization
@@ -25,7 +26,15 @@ public enum ErrorCode {
     // Member / Ward
     MEMBER_NOT_FOUND(HttpStatus.NOT_FOUND, "M001", "연결된 피보호자를 찾을 수 없습니다."),
     WARD_ALREADY_EXISTS(HttpStatus.CONFLICT, "M002", "이미 등록된 피보호자가 있습니다."),
-    DEVICE_ALREADY_EXISTS(HttpStatus.CONFLICT, "M003", "이미 등록된 디바이스입니다.");
+    DEVICE_ALREADY_EXISTS(HttpStatus.CONFLICT, "M003", "이미 등록된 디바이스입니다."),
+
+    // Device
+    DEVICE_NOT_REGISTERED(HttpStatus.NOT_FOUND, "D001", "등록되지 않은 디바이스입니다."),
+    INVALID_EVENT_TYPE(HttpStatus.BAD_REQUEST, "D002", "알 수 없는 이벤트 타입입니다."),
+
+    // Social Login
+    UNSUPPORTED_SOCIAL_TYPE(HttpStatus.BAD_REQUEST, "S001", "지원하지 않는 소셜 로그인 타입입니다."),
+    SOCIAL_LOGIN_FAILED(HttpStatus.BAD_REQUEST, "S002", "소셜 로그인 처리 중 오류가 발생했습니다.");
 
     private final HttpStatus status;
     private final String code;

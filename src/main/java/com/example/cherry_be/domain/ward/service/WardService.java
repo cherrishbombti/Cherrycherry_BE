@@ -1,5 +1,7 @@
 package com.example.cherry_be.domain.ward.service;
 
+import com.example.cherry_be.domain.log.dto.LogPageResponse;
+import com.example.cherry_be.domain.log.service.LogQueryService;
 import com.example.cherry_be.domain.member.entity.Member;
 import com.example.cherry_be.domain.member.repository.MemberRepository;
 import com.example.cherry_be.domain.user.entity.User;
@@ -14,6 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import org.springframework.data.domain.Pageable;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -25,6 +28,7 @@ public class WardService {
     private final UserRepository userRepository;
     private final MemberRepository memberRepository;
     private final EmergencyContactRepository emergencyContactRepository;
+    private final LogQueryService logQueryService;
 
     private User getGuardian(String oauthEmail) {
         return userRepository.findByOauthEmail(oauthEmail)
