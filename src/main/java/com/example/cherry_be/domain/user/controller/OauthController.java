@@ -38,10 +38,14 @@ public class OauthController {
     @GetMapping(value = "/{socialLoginType}")
     public void socialLoginType(
             @PathVariable(name = "socialLoginType") SocialLoginType socialLoginType,
+            @RequestParam(name = "state", required = false) String state,
             HttpServletResponse response) throws IOException {
 
         log.info(">> 사용자로부터 SNS 로그인 요청을 받음 :: {} Social Login", socialLoginType);
         String redirectUrl = oauthService.authorize(socialLoginType);
+        if ("app".equals(state)) {
+            redirectUrl += "&state=app";
+        }
         response.sendRedirect(redirectUrl);
     }
 
@@ -55,6 +59,7 @@ public class OauthController {
     public void callback(
             @PathVariable(name = "socialLoginType") SocialLoginType socialLoginType,
             @RequestParam(name = "code") String code,
+            @RequestParam(name = "state", required = false) String state,
             HttpServletResponse response) throws IOException {
 
         log.info(">> 소셜 로그인 API 서버로부터 받은 code :: {}", code);
@@ -75,9 +80,16 @@ public class OauthController {
         String jwtToken = jwtUtil.createToken(result.getUser().getOauthEmail(), "ROLE_USER");
         log.info(">> [6] JWT 토큰 발급 완료");
 
-        String redirectUrl = frontendRedirectUrl
-                + "?token=" + jwtToken
-                + "&isNewUser=" + needsWardRegistration;
+        String redirectUrl;
+        if ("app".equals(state)) {
+            redirectUrl = "cherrishbomb://login" //앱을 이름 바꾸면 수정할 예정
+                    + "?token=" + jwtToken
+                    + "&isNewUser=" + needsWardRegistration;
+        } else {
+            redirectUrl = frontendRedirectUrl
+                    + "?token=" + jwtToken
+                    + "&isNewUser=" + needsWardRegistration;
+        }
 
         response.sendRedirect(redirectUrl);
     }

@@ -63,4 +63,15 @@ public class WardController {
             @RequestBody WardContactRequest request) {
         return ResponseEntity.ok(wardService.addContact(authentication.getName(), request));
     }
+
+    /**
+     * [PUT] /api/wards/me/contacts/priority — 비상연락망 우선순위 저장
+     */
+    @PutMapping("/me/contacts/priority")
+    public ResponseEntity<Void> updateContactPriority(
+            Authentication authentication,
+            @RequestBody ContactPriorityRequest request) {
+        wardService.updateContactPriority(authentication.getName(), request);
+        return ResponseEntity.ok().build();
+    }
 }

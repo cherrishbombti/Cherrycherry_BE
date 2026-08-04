@@ -26,8 +26,17 @@ public class DeviceService {
                 .orElseThrow(() -> new IllegalArgumentException(
                         "등록되지 않은 디바이스입니다: " + request.getDeviceId()));
 
-        // 2. 문자열 event_type → MemberStatus enum 변환
-        MemberStatus newStatus = MemberStatus.valueOf(request.getEventType());
+        // 2. 문자열 event_type → MemberStatus enum 변환 (DANGER는 EMERGENCY로, 알 수 없는 값은 SAFE로 자동 변환)
+        String eventType = request.getEventType();
+        if ("DANGER".equals(eventType)) {
+            eventType = "EMERGENCY";
+        }
+        MemberStatus newStatus;
+        try {
+            newStatus = MemberStatus.valueOf(eventType);
+        } catch (IllegalArgumentException e) {
+            newStatus = MemberStatus.SAFE;
+        }
 
         DeviceDataRequest.SensorStatus sensorStatus = request.getSensorStatus();
         Boolean vibrator = sensorStatus.getVibrator();

@@ -111,13 +111,31 @@ public class WardService {
     public WardContactResponse addContact(String oauthEmail, WardContactRequest request) {
         Member ward = getWard(getGuardian(oauthEmail));
 
+        int nextPriority = emergencyContactRepository.findByMember(ward).size() + 1;
         EmergencyContact contact = EmergencyContact.builder()
                 .member(ward)
                 .name(request.getName())
                 .phone(request.getPhone())
                 .relationship(request.getRelationship())
+                .priority(nextPriority)
                 .build();
 
         return WardContactResponse.from(emergencyContactRepository.save(contact));
+    }
+
+    /**
+     * [PUT] /api/wards/me/contacts/priority
+     */
+    @Transactional
+    public void updateContactPriority(String oauthEmail, ContactPriorityRequest request) {
+        Member ward = getWard(getGuardian(oauthEmail));
+        List<EmergencyContact> contacts = emergencyContactRepository.findByMember(ward);
+
+        request.getContacts().forEach(item -> {
+            contacts.stream()
+                    .filter(c -> c.getId().equals(item.getContactId()))
+                    .findFirst()
+                    .ifPresent(c -> c.updatePriority(item.getPriority()));
+        });
     }
 }

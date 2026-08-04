@@ -32,11 +32,19 @@ public class EmergencyContact {
     @Column(name = "relation", nullable = false)
     private String relationship;
 
+    @Column(nullable = false)
+    private int priority = 0;
+
     @Builder
-    public EmergencyContact(Member member, String name, String phone, String relationship) {
+    public EmergencyContact(Member member, String name, String phone, String relationship, int priority) {
         this.member = member;
         this.name = name;
         this.phone = phone;
         this.relationship = relationship;
+        this.priority = priority;
+    }
+
+    public void updatePriority(int priority) {
+        this.priority = priority;
     }
 }

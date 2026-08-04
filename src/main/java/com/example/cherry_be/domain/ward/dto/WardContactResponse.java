@@ -12,7 +12,7 @@ public class WardContactResponse {
     private String name;
     private String phone;        // phoneNumber → phone
     private String relationship; // relation → relationship
-    private int priority;        // 순서 (임시: 등록 순서)
+    private int priority;
 
     public static WardContactResponse from(EmergencyContact contact) {
         return WardContactResponse.builder()
@@ -20,7 +20,7 @@ public class WardContactResponse {
                 .name(contact.getName())
                 .phone(contact.getPhone())
                 .relationship(contact.getRelationship())
-                .priority(0)
+                .priority(contact.getPriority())
                 .build();
     }
 }
