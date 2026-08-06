@@ -1,5 +1,6 @@
 package com.example.cherry_be.domain.member.controller;
 
+import com.example.cherry_be.domain.health.dto.HealthResponse;
 import com.example.cherry_be.domain.log.dto.LogPageResponse;
 import com.example.cherry_be.domain.member.dto.MemberDetailResponse;
 import com.example.cherry_be.domain.member.dto.MemberRegisterRequest;
@@ -99,6 +100,19 @@ public class MemberController {
         Pageable pageable = PageRequest.of(page, size);
         return ResponseEntity.ok(
                 memberService.getLogs(authentication.getName(), targetId, from, to, pageable));
+    }
+
+
+    /**
+     * 피보호자 건강 정보 조회
+     * [GET] /api/targets/{targetId}/health
+     */
+    @GetMapping("/{targetId}/health")
+    public ResponseEntity<HealthResponse> getTargetHealth(
+            Authentication authentication,
+            @PathVariable Long targetId) {
+        return ResponseEntity.ok(
+                memberService.getHealth(authentication.getName(), targetId));
     }
 
 }
