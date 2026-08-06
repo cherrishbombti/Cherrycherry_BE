@@ -4,6 +4,8 @@ import com.example.cherry_be.domain.member.dto.MemberDetailResponse;
 import com.example.cherry_be.domain.member.dto.MemberRegisterRequest;
 import com.example.cherry_be.domain.member.dto.MemberSummaryResponse;
 import com.example.cherry_be.domain.health.dto.HealthResponse;
+import com.example.cherry_be.domain.health.dto.HealthUpsertRequest;
+import com.example.cherry_be.domain.health.entity.UpdatedByType;
 import com.example.cherry_be.domain.health.service.MemberHealthService;
 import com.example.cherry_be.domain.log.dto.LogPageResponse;
 import com.example.cherry_be.domain.log.service.LogQueryService;
@@ -152,15 +154,42 @@ public class MemberService {
      */
     @Transactional(readOnly = true)
     public HealthResponse getHealth(String orgId, Long targetId) {
-        Member member = findOwnedMember(orgId, targetId);
+        Member member = findOwnedMember(findOrganization(orgId), targetId, orgId);
         return memberHealthService.get(member);
+    }
+
+    /**
+     * [PUT] /api/targets/{targetId}/health — 전체 등록/수정
+     */
+    @Transactional
+    public HealthResponse putHealth(String orgId, Long targetId, HealthUpsertRequest request) {
+        Organization organization = findOrganization(orgId);
+        Member member = findOwnedMember(organization, targetId, orgId);
+        return memberHealthService.put(member, request, toActor(organization));
+    }
+
+    /**
+     * [PATCH] /api/targets/{targetId}/health — 부분 수정
+     */
+    @Transactional
+    public HealthResponse patchHealth(String orgId, Long targetId, HealthUpsertRequest request) {
+        Organization organization = findOrganization(orgId);
+        Member member = findOwnedMember(organization, targetId, orgId);
+        return memberHealthService.patch(member, request, toActor(organization));
+    }
+
+    private MemberHealthService.Actor toActor(Organization organization) {
+        return MemberHealthService.Actor.builder()
+                .type(UpdatedByType.ORGANIZATION)
+                .id(organization.getId())
+                .name(organization.getName())
+                .build();
     }
 
     /**
      * 기관 소속 피보호자 조회 + 소속 검증 (공통)
      */
-    private Member findOwnedMember(String orgId, Long targetId) {
-        Organization organization = findOrganization(orgId);
+    private Member findOwnedMember(Organization organization, Long targetId, String orgId) {
         Member member = memberRepository.findById(targetId)
                 .orElseThrow(() -> new CustomException(ErrorCode.MEMBER_NOT_FOUND));
 
