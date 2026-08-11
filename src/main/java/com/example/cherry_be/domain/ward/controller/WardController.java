@@ -116,7 +116,7 @@ public class WardController {
     @PutMapping("/me/health")
     public ResponseEntity<HealthResponse> putHealth(
             Authentication authentication,
-            @RequestBody HealthUpsertRequest request) {
+            @Valid @RequestBody HealthUpsertRequest request) {
         return ResponseEntity.ok(wardService.putHealth(authentication.getName(), request));
     }
 
@@ -127,7 +127,7 @@ public class WardController {
     @PatchMapping("/me/health")
     public ResponseEntity<HealthResponse> patchHealth(
             Authentication authentication,
-            @RequestBody HealthUpsertRequest request) {
+            @Valid @RequestBody HealthUpsertRequest request) {
         return ResponseEntity.ok(wardService.patchHealth(authentication.getName(), request));
     }
 
