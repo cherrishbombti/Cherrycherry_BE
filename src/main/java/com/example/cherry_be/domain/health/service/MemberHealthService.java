@@ -1,7 +1,8 @@
 package com.example.cherry_be.domain.health.service;
 
 import com.example.cherry_be.domain.health.dto.HealthResponse;
-import com.example.cherry_be.domain.health.dto.HealthUpsertRequest;
+import com.example.cherry_be.domain.health.dto.HealthPatchRequest;
+import com.example.cherry_be.domain.health.dto.HealthPutRequest;
 import com.example.cherry_be.domain.health.entity.MemberHealth;
 import com.example.cherry_be.domain.health.entity.UpdatedByType;
 import com.example.cherry_be.domain.health.repository.MemberHealthRepository;
@@ -45,7 +46,7 @@ public class MemberHealthService {
      * PUT — 없으면 생성, 있으면 전체 교체(upsert).
      */
     @Transactional
-    public HealthResponse put(Member member, HealthUpsertRequest request, Actor actor) {
+    public HealthResponse put(Member member, HealthPutRequest request, Actor actor) {
         MemberHealth health = memberHealthRepository.findByMember(member).orElse(null);
 
         if (health == null) {
@@ -69,12 +70,21 @@ public class MemberHealthService {
      * PATCH — 전달된 필드만 수정. 없으면 생성한다.
      */
     @Transactional
-    public HealthResponse patch(Member member, HealthUpsertRequest request, Actor actor) {
+    public HealthResponse patch(Member member, HealthPatchRequest request, Actor actor) {
         MemberHealth health = memberHealthRepository.findByMember(member).orElse(null);
 
         if (health == null) {
-            // 최초 등록이면 PUT과 동일하게 처리
-            return put(member, request, actor);
+            // 최초 등록: 전달된 필드만 채우고 나머지는 null로 둔다
+            health = memberHealthRepository.save(MemberHealth.builder()
+                    .member(member)
+                    .disease(request.getDisease())
+                    .medication(request.getMedication())
+                    .memo(request.getMemo())
+                    .updatedByType(actor.getType())
+                    .updatedById(actor.getId())
+                    .updatedByName(actor.getName())
+                    .build());
+            return HealthResponse.from(health);
         }
         health.patch(request.getDisease(), request.getMedication(), request.getMemo(),
                 actor.getType(), actor.getId(), actor.getName());

@@ -1,7 +1,8 @@
 package com.example.cherry_be.domain.ward.service;
 
 import com.example.cherry_be.domain.health.dto.HealthResponse;
-import com.example.cherry_be.domain.health.dto.HealthUpsertRequest;
+import com.example.cherry_be.domain.health.dto.HealthPatchRequest;
+import com.example.cherry_be.domain.health.dto.HealthPutRequest;
 import com.example.cherry_be.domain.health.entity.UpdatedByType;
 import com.example.cherry_be.domain.health.service.MemberHealthService;
 import com.example.cherry_be.domain.log.dto.LogPageResponse;
@@ -181,7 +182,7 @@ public class WardService {
      * [PUT] /api/wards/me/health — 전체 등록/수정
      */
     @Transactional
-    public HealthResponse putHealth(String oauthEmail, HealthUpsertRequest request) {
+    public HealthResponse putHealth(String oauthEmail, HealthPutRequest request) {
         User guardian = getGuardian(oauthEmail);
         return memberHealthService.put(getWard(guardian), request, toActor(guardian));
     }
@@ -190,7 +191,7 @@ public class WardService {
      * [PATCH] /api/wards/me/health — 부분 수정
      */
     @Transactional
-    public HealthResponse patchHealth(String oauthEmail, HealthUpsertRequest request) {
+    public HealthResponse patchHealth(String oauthEmail, HealthPatchRequest request) {
         User guardian = getGuardian(oauthEmail);
         return memberHealthService.patch(getWard(guardian), request, toActor(guardian));
     }

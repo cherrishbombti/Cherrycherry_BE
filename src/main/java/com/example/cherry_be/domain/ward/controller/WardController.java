@@ -1,7 +1,8 @@
 package com.example.cherry_be.domain.ward.controller;
 
 import com.example.cherry_be.domain.health.dto.HealthResponse;
-import com.example.cherry_be.domain.health.dto.HealthUpsertRequest;
+import com.example.cherry_be.domain.health.dto.HealthPatchRequest;
+import com.example.cherry_be.domain.health.dto.HealthPutRequest;
 import com.example.cherry_be.domain.log.dto.LogPageResponse;
 import com.example.cherry_be.domain.ward.dto.*;
 import com.example.cherry_be.domain.ward.service.WardService;
@@ -116,7 +117,7 @@ public class WardController {
     @PutMapping("/me/health")
     public ResponseEntity<HealthResponse> putHealth(
             Authentication authentication,
-            @Valid @RequestBody HealthUpsertRequest request) {
+            @Valid @RequestBody HealthPutRequest request) {
         return ResponseEntity.ok(wardService.putHealth(authentication.getName(), request));
     }
 
@@ -127,7 +128,7 @@ public class WardController {
     @PatchMapping("/me/health")
     public ResponseEntity<HealthResponse> patchHealth(
             Authentication authentication,
-            @Valid @RequestBody HealthUpsertRequest request) {
+            @Valid @RequestBody HealthPatchRequest request) {
         return ResponseEntity.ok(wardService.patchHealth(authentication.getName(), request));
     }
 

@@ -1,7 +1,8 @@
 package com.example.cherry_be.domain.member.controller;
 
 import com.example.cherry_be.domain.health.dto.HealthResponse;
-import com.example.cherry_be.domain.health.dto.HealthUpsertRequest;
+import com.example.cherry_be.domain.health.dto.HealthPatchRequest;
+import com.example.cherry_be.domain.health.dto.HealthPutRequest;
 import com.example.cherry_be.domain.log.dto.LogPageResponse;
 import com.example.cherry_be.domain.member.dto.MemberDetailResponse;
 import com.example.cherry_be.domain.member.dto.MemberRegisterRequest;
@@ -126,7 +127,7 @@ public class MemberController {
     public ResponseEntity<HealthResponse> putTargetHealth(
             Authentication authentication,
             @PathVariable Long targetId,
-            @Valid @RequestBody HealthUpsertRequest request) {
+            @Valid @RequestBody HealthPutRequest request) {
         return ResponseEntity.ok(
                 memberService.putHealth(authentication.getName(), targetId, request));
     }
@@ -139,7 +140,7 @@ public class MemberController {
     public ResponseEntity<HealthResponse> patchTargetHealth(
             Authentication authentication,
             @PathVariable Long targetId,
-            @Valid @RequestBody HealthUpsertRequest request) {
+            @Valid @RequestBody HealthPatchRequest request) {
         return ResponseEntity.ok(
                 memberService.patchHealth(authentication.getName(), targetId, request));
     }

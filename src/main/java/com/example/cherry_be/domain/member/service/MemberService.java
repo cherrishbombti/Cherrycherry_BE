@@ -4,7 +4,8 @@ import com.example.cherry_be.domain.member.dto.MemberDetailResponse;
 import com.example.cherry_be.domain.member.dto.MemberRegisterRequest;
 import com.example.cherry_be.domain.member.dto.MemberSummaryResponse;
 import com.example.cherry_be.domain.health.dto.HealthResponse;
-import com.example.cherry_be.domain.health.dto.HealthUpsertRequest;
+import com.example.cherry_be.domain.health.dto.HealthPatchRequest;
+import com.example.cherry_be.domain.health.dto.HealthPutRequest;
 import com.example.cherry_be.domain.health.entity.UpdatedByType;
 import com.example.cherry_be.domain.health.service.MemberHealthService;
 import com.example.cherry_be.domain.log.dto.LogPageResponse;
@@ -131,7 +132,7 @@ public class MemberService {
      * [PUT] /api/targets/{targetId}/health — 전체 등록/수정
      */
     @Transactional
-    public HealthResponse putHealth(String orgId, Long targetId, HealthUpsertRequest request) {
+    public HealthResponse putHealth(String orgId, Long targetId, HealthPutRequest request) {
         Organization organization = findOrganization(orgId);
         Member member = findOwnedMember(organization, targetId, orgId);
         return memberHealthService.put(member, request, toActor(organization));
@@ -141,7 +142,7 @@ public class MemberService {
      * [PATCH] /api/targets/{targetId}/health — 부분 수정
      */
     @Transactional
-    public HealthResponse patchHealth(String orgId, Long targetId, HealthUpsertRequest request) {
+    public HealthResponse patchHealth(String orgId, Long targetId, HealthPatchRequest request) {
         Organization organization = findOrganization(orgId);
         Member member = findOwnedMember(organization, targetId, orgId);
         return memberHealthService.patch(member, request, toActor(organization));
