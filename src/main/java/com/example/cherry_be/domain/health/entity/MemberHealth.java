@@ -1,13 +1,13 @@
 package com.example.cherry_be.domain.health.entity;
 
 import com.example.cherry_be.domain.member.entity.Member;
+import com.example.cherry_be.global.common.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
 import java.util.Objects;
 
 /**
@@ -18,7 +18,7 @@ import java.util.Objects;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(name = "member_health")
-public class MemberHealth {
+public class MemberHealth extends BaseTimeEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -49,12 +49,6 @@ public class MemberHealth {
     @Column(name = "updated_by_name")
     private String updatedByName;  // 조회 시 조인을 피하기 위해 표시용 이름을 함께 저장
 
-    @Column(name = "created_at", updatable = false)
-    private LocalDateTime createdAt;
-
-    @Column(name = "updated_at")
-    private LocalDateTime updatedAt;
-
     @Builder
     public MemberHealth(Member member, String disease, String medication, String memo,
                         UpdatedByType updatedByType, Long updatedById, String updatedByName) {
@@ -65,9 +59,6 @@ public class MemberHealth {
         this.updatedByType = updatedByType;
         this.updatedById = updatedById;
         this.updatedByName = updatedByName;
-        LocalDateTime now = LocalDateTime.now();
-        this.createdAt = now;
-        this.updatedAt = now;
     }
 
     /**
@@ -126,10 +117,14 @@ public class MemberHealth {
         }
     }
 
+    /**
+     * 수정 주체만 기록한다. updatedAt 은 BaseTimeEntity 의 Auditing 이 갱신한다.
+     * 수정 주체는 users/organization 두 테이블이라 @LastModifiedBy 로 표현할 수 없어
+     * 타입+ID 를 직접 저장한다.
+     */
     private void markUpdatedBy(UpdatedByType type, Long id, String name) {
         this.updatedByType = type;
         this.updatedById = id;
         this.updatedByName = name;
-        this.updatedAt = LocalDateTime.now();
     }
 }
