@@ -8,6 +8,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.Objects;
 
 /**
  * 피보호자 건강정보 (기저질환·복용약·병력).
@@ -70,26 +71,59 @@ public class MemberHealth {
     }
 
     /**
-     * 전체 수정 (PUT) — 전달된 값으로 모두 교체한다. null이면 값이 비워진다.
+     * 전체 수정 (PUT) — 전달된 값으로 모두 교체한다.
+     * 실제로 바뀐 값이 하나도 없으면 감사 정보(수정자·수정시각)를 갱신하지 않는다.
      */
     public void replace(String disease, String medication, String memo,
                         UpdatedByType updatedByType, Long updatedById, String updatedByName) {
-        this.disease = disease;
-        this.medication = medication;
-        this.memo = memo;
-        markUpdatedBy(updatedByType, updatedById, updatedByName);
+        boolean changed = false;
+
+        if (!Objects.equals(this.disease, disease)) {
+            this.disease = disease;
+            changed = true;
+        }
+        if (!Objects.equals(this.medication, medication)) {
+            this.medication = medication;
+            changed = true;
+        }
+        if (!Objects.equals(this.memo, memo)) {
+            this.memo = memo;
+            changed = true;
+        }
+
+        if (changed) {
+            markUpdatedBy(updatedByType, updatedById, updatedByName);
+        }
     }
 
     /**
      * 부분 수정 (PATCH) — null인 필드는 기존 값을 유지한다.
      * 값을 비우려면 빈 문자열("")을 전달한다. (프론트와 합의된 규칙)
+     *
+     * 빈 요청({})이나 기존과 동일한 값이 온 경우에는 실제 변경이 없으므로
+     * 감사 정보를 갱신하지 않는다. 수정하지 않은 주체가 최종 수정자로
+     * 기록되면 감사 추적의 의미가 사라지기 때문이다.
      */
     public void patch(String disease, String medication, String memo,
                       UpdatedByType updatedByType, Long updatedById, String updatedByName) {
-        if (disease != null) this.disease = disease;
-        if (medication != null) this.medication = medication;
-        if (memo != null) this.memo = memo;
-        markUpdatedBy(updatedByType, updatedById, updatedByName);
+        boolean changed = false;
+
+        if (disease != null && !Objects.equals(this.disease, disease)) {
+            this.disease = disease;
+            changed = true;
+        }
+        if (medication != null && !Objects.equals(this.medication, medication)) {
+            this.medication = medication;
+            changed = true;
+        }
+        if (memo != null && !Objects.equals(this.memo, memo)) {
+            this.memo = memo;
+            changed = true;
+        }
+
+        if (changed) {
+            markUpdatedBy(updatedByType, updatedById, updatedByName);
+        }
     }
 
     private void markUpdatedBy(UpdatedByType type, Long id, String name) {
