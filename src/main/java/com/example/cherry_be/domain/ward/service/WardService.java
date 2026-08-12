@@ -1,5 +1,10 @@
 package com.example.cherry_be.domain.ward.service;
 
+import com.example.cherry_be.domain.health.dto.HealthResponse;
+import com.example.cherry_be.domain.health.dto.HealthPatchRequest;
+import com.example.cherry_be.domain.health.dto.HealthPutRequest;
+import com.example.cherry_be.domain.health.entity.UpdatedByType;
+import com.example.cherry_be.domain.health.service.MemberHealthService;
 import com.example.cherry_be.domain.log.dto.LogPageResponse;
 import com.example.cherry_be.domain.log.entity.Log;
 import com.example.cherry_be.domain.log.entity.LogType;
@@ -33,6 +38,7 @@ public class WardService {
     private final EmergencyContactRepository emergencyContactRepository;
     private final LogQueryService logQueryService;
     private final LogRepository logRepository;
+    private final MemberHealthService memberHealthService;
 
     private User getGuardian(String oauthEmail) {
         return userRepository.findByOauthEmail(oauthEmail)
@@ -158,6 +164,44 @@ public class WardService {
                 .build());
 
         return EmergencyLogResponse.from(log);
+    }
+
+
+    // ── 건강정보 (#26) ──────────────────────────────
+
+    /**
+     * [GET] /api/wards/me/health
+     */
+    @Transactional(readOnly = true)
+    public HealthResponse getHealth(String oauthEmail) {
+        User guardian = getGuardian(oauthEmail);
+        return memberHealthService.get(getWard(guardian));
+    }
+
+    /**
+     * [PUT] /api/wards/me/health — 전체 등록/수정
+     */
+    @Transactional
+    public HealthResponse putHealth(String oauthEmail, HealthPutRequest request) {
+        User guardian = getGuardian(oauthEmail);
+        return memberHealthService.put(getWard(guardian), request, toActor(guardian));
+    }
+
+    /**
+     * [PATCH] /api/wards/me/health — 부분 수정
+     */
+    @Transactional
+    public HealthResponse patchHealth(String oauthEmail, HealthPatchRequest request) {
+        User guardian = getGuardian(oauthEmail);
+        return memberHealthService.patch(getWard(guardian), request, toActor(guardian));
+    }
+
+    private MemberHealthService.Actor toActor(User guardian) {
+        return MemberHealthService.Actor.builder()
+                .type(UpdatedByType.USER)
+                .id(guardian.getId())
+                .name(guardian.getName())
+                .build();
     }
 
 }

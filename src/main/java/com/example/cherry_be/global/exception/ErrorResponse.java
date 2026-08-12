@@ -17,4 +17,18 @@ public record ErrorResponse(
                         errorCode.getMessage()
                 ));
     }
+
+    /**
+     * 코드는 유지하되 상세 메시지를 덮어써야 할 때 사용한다.
+     * (예: Bean Validation 실패 시 어떤 필드가 왜 틀렸는지 전달)
+     */
+    public static ResponseEntity<ErrorResponse> toResponseEntity(ErrorCode errorCode, String message) {
+        return ResponseEntity
+                .status(errorCode.getStatus())
+                .body(new ErrorResponse(
+                        errorCode.getStatus().value(),
+                        errorCode.getCode(),
+                        message
+                ));
+    }
 }

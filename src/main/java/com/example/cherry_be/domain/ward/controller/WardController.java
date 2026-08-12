@@ -1,5 +1,8 @@
 package com.example.cherry_be.domain.ward.controller;
 
+import com.example.cherry_be.domain.health.dto.HealthResponse;
+import com.example.cherry_be.domain.health.dto.HealthPatchRequest;
+import com.example.cherry_be.domain.health.dto.HealthPutRequest;
 import com.example.cherry_be.domain.log.dto.LogPageResponse;
 import com.example.cherry_be.domain.ward.dto.*;
 import com.example.cherry_be.domain.ward.service.WardService;
@@ -94,6 +97,39 @@ public class WardController {
     @PostMapping("/me/emergency-log")
     public ResponseEntity<EmergencyLogResponse> addEmergencyLog(Authentication authentication) {
         return ResponseEntity.ok(wardService.addEmergencyLog(authentication.getName()));
+    }
+
+
+    // ── 건강정보 (#26) ──────────────────────────────
+
+    /**
+     * [GET] /api/wards/me/health — 건강정보 조회
+     * 아직 등록 전이면 빈 값이 담긴 200을 반환한다.
+     */
+    @GetMapping("/me/health")
+    public ResponseEntity<HealthResponse> getHealth(Authentication authentication) {
+        return ResponseEntity.ok(wardService.getHealth(authentication.getName()));
+    }
+
+    /**
+     * [PUT] /api/wards/me/health — 전체 등록/수정 (upsert)
+     */
+    @PutMapping("/me/health")
+    public ResponseEntity<HealthResponse> putHealth(
+            Authentication authentication,
+            @Valid @RequestBody HealthPutRequest request) {
+        return ResponseEntity.ok(wardService.putHealth(authentication.getName(), request));
+    }
+
+    /**
+     * [PATCH] /api/wards/me/health — 부분 수정
+     * null인 필드는 수정하지 않고, 값을 비우려면 빈 문자열을 보낸다.
+     */
+    @PatchMapping("/me/health")
+    public ResponseEntity<HealthResponse> patchHealth(
+            Authentication authentication,
+            @Valid @RequestBody HealthPatchRequest request) {
+        return ResponseEntity.ok(wardService.patchHealth(authentication.getName(), request));
     }
 
 }

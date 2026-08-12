@@ -3,6 +3,11 @@ package com.example.cherry_be.domain.member.service;
 import com.example.cherry_be.domain.member.dto.MemberDetailResponse;
 import com.example.cherry_be.domain.member.dto.MemberRegisterRequest;
 import com.example.cherry_be.domain.member.dto.MemberSummaryResponse;
+import com.example.cherry_be.domain.health.dto.HealthResponse;
+import com.example.cherry_be.domain.health.dto.HealthPatchRequest;
+import com.example.cherry_be.domain.health.dto.HealthPutRequest;
+import com.example.cherry_be.domain.health.entity.UpdatedByType;
+import com.example.cherry_be.domain.health.service.MemberHealthService;
 import com.example.cherry_be.domain.log.dto.LogPageResponse;
 import com.example.cherry_be.domain.log.service.LogQueryService;
 import com.example.cherry_be.domain.member.entity.Member;
@@ -29,6 +34,7 @@ public class MemberService {
     private final MemberRepository memberRepository;
     private final OrganizationRepository organizationRepository;
     private final LogQueryService logQueryService;
+    private final MemberHealthService memberHealthService;
 
     // JWT의 orgId로 Organization을 찾는 공통 메서드
     private Organization findOrganization(String orgId) {
@@ -86,18 +92,7 @@ public class MemberService {
      */
     @Transactional(readOnly = true)
     public MemberDetailResponse getTargetDetail(String orgId, Long targetId) {
-        Organization organization = findOrganization(orgId);
-        Member member = memberRepository.findById(targetId)
-                .orElseThrow(() -> new CustomException(ErrorCode.MEMBER_NOT_FOUND));
-
-        // 해당 기관 소속인지 검증
-        if (member.getOrganization() == null
-                || !member.getOrganization().getId().equals(organization.getId())) {
-            // 존재 여부 노출(IDOR) 방지를 위해 "없음"과 동일하게 404 반환
-            log.warn("타 기관 피보호자 접근 시도 - orgId: {}, targetId: {}", orgId, member.getId());
-            throw new CustomException(ErrorCode.MEMBER_NOT_FOUND);
-        }
-
+        Member member = findOwnedMember(findOrganization(orgId), targetId, orgId);
         return new MemberDetailResponse(member);
     }
 
@@ -107,18 +102,7 @@ public class MemberService {
      */
     @Transactional
     public void deleteMember(String orgId, Long targetId) {
-        Organization organization = findOrganization(orgId);
-        Member member = memberRepository.findById(targetId)
-                .orElseThrow(() -> new CustomException(ErrorCode.MEMBER_NOT_FOUND));
-
-        // 해당 기관 소속인지 검증
-        if (member.getOrganization() == null
-                || !member.getOrganization().getId().equals(organization.getId())) {
-            // 존재 여부 노출(IDOR) 방지를 위해 "없음"과 동일하게 404 반환
-            log.warn("타 기관 피보호자 접근 시도 - orgId: {}, targetId: {}", orgId, member.getId());
-            throw new CustomException(ErrorCode.MEMBER_NOT_FOUND);
-        }
-
+        Member member = findOwnedMember(findOrganization(orgId), targetId, orgId);
         memberRepository.delete(member);
     }
 
@@ -129,17 +113,66 @@ public class MemberService {
     @Transactional(readOnly = true)
     public LogPageResponse getLogs(String orgId, Long targetId,
                                    LocalDate from, LocalDate to, Pageable pageable) {
+        Member member = findOwnedMember(findOrganization(orgId), targetId, orgId);
+        return logQueryService.getLogs(member, from, to, pageable);
+    }
+
+
+    /**
+     * [GET] /api/targets/{targetId}/health — 기관의 피보호자 건강정보 조회
+     * 소속 검증 실패 시 존재하지 않는 경우와 동일하게 404
+     */
+    @Transactional(readOnly = true)
+    public HealthResponse getHealth(String orgId, Long targetId) {
+        Member member = findOwnedMember(findOrganization(orgId), targetId, orgId);
+        return memberHealthService.get(member);
+    }
+
+    /**
+     * [PUT] /api/targets/{targetId}/health — 전체 등록/수정
+     */
+    @Transactional
+    public HealthResponse putHealth(String orgId, Long targetId, HealthPutRequest request) {
         Organization organization = findOrganization(orgId);
+        Member member = findOwnedMember(organization, targetId, orgId);
+        return memberHealthService.put(member, request, toActor(organization));
+    }
+
+    /**
+     * [PATCH] /api/targets/{targetId}/health — 부분 수정
+     */
+    @Transactional
+    public HealthResponse patchHealth(String orgId, Long targetId, HealthPatchRequest request) {
+        Organization organization = findOrganization(orgId);
+        Member member = findOwnedMember(organization, targetId, orgId);
+        return memberHealthService.patch(member, request, toActor(organization));
+    }
+
+    private MemberHealthService.Actor toActor(Organization organization) {
+        return MemberHealthService.Actor.builder()
+                .type(UpdatedByType.ORGANIZATION)
+                .id(organization.getId())
+                .name(organization.getName())
+                .build();
+    }
+
+    /**
+     * 기관 소속 피보호자 조회 + 소속 검증 (공통).
+     *
+     * 소속이 아니면 존재하지 않는 경우와 동일하게 404를 반환한다.
+     * 403을 주면 "존재하지만 볼 수 없다"는 사실이 드러나 ID 스캔이 가능해지므로(IDOR),
+     * 실제 사유는 서버 로그에만 남긴다.
+     */
+    private Member findOwnedMember(Organization organization, Long targetId, String orgId) {
         Member member = memberRepository.findById(targetId)
                 .orElseThrow(() -> new CustomException(ErrorCode.MEMBER_NOT_FOUND));
 
         if (member.getOrganization() == null
                 || !member.getOrganization().getId().equals(organization.getId())) {
-            log.warn("타 기관 피보호자 이력 접근 시도 - orgId: {}, targetId: {}", orgId, targetId);
+            log.warn("타 기관 피보호자 접근 시도 - orgId: {}, targetId: {}", orgId, targetId);
             throw new CustomException(ErrorCode.MEMBER_NOT_FOUND);
         }
-
-        return logQueryService.getLogs(member, from, to, pageable);
+        return member;
     }
 
 }

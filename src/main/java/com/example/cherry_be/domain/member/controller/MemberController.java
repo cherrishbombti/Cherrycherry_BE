@@ -1,10 +1,14 @@
 package com.example.cherry_be.domain.member.controller;
 
+import com.example.cherry_be.domain.health.dto.HealthResponse;
+import com.example.cherry_be.domain.health.dto.HealthPatchRequest;
+import com.example.cherry_be.domain.health.dto.HealthPutRequest;
 import com.example.cherry_be.domain.log.dto.LogPageResponse;
 import com.example.cherry_be.domain.member.dto.MemberDetailResponse;
 import com.example.cherry_be.domain.member.dto.MemberRegisterRequest;
 import com.example.cherry_be.domain.member.dto.MemberSummaryResponse;
 import com.example.cherry_be.domain.member.service.MemberService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -99,6 +103,46 @@ public class MemberController {
         Pageable pageable = PageRequest.of(page, size);
         return ResponseEntity.ok(
                 memberService.getLogs(authentication.getName(), targetId, from, to, pageable));
+    }
+
+
+    /**
+     * 피보호자 건강 정보 조회
+     * [GET] /api/targets/{targetId}/health
+     */
+    @GetMapping("/{targetId}/health")
+    public ResponseEntity<HealthResponse> getTargetHealth(
+            Authentication authentication,
+            @PathVariable Long targetId) {
+        return ResponseEntity.ok(
+                memberService.getHealth(authentication.getName(), targetId));
+    }
+
+
+    /**
+     * 피보호자 건강 정보 전체 등록/수정
+     * [PUT] /api/targets/{targetId}/health
+     */
+    @PutMapping("/{targetId}/health")
+    public ResponseEntity<HealthResponse> putTargetHealth(
+            Authentication authentication,
+            @PathVariable Long targetId,
+            @Valid @RequestBody HealthPutRequest request) {
+        return ResponseEntity.ok(
+                memberService.putHealth(authentication.getName(), targetId, request));
+    }
+
+    /**
+     * 피보호자 건강 정보 부분 수정
+     * [PATCH] /api/targets/{targetId}/health
+     */
+    @PatchMapping("/{targetId}/health")
+    public ResponseEntity<HealthResponse> patchTargetHealth(
+            Authentication authentication,
+            @PathVariable Long targetId,
+            @Valid @RequestBody HealthPatchRequest request) {
+        return ResponseEntity.ok(
+                memberService.patchHealth(authentication.getName(), targetId, request));
     }
 
 }
