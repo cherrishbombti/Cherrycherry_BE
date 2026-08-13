@@ -32,6 +32,9 @@ public enum ErrorCode {
     WARD_ALREADY_EXISTS(HttpStatus.CONFLICT, "M002", "이미 등록된 피보호자가 있습니다."),
     DEVICE_ALREADY_EXISTS(HttpStatus.CONFLICT, "M003", "이미 등록된 디바이스입니다."),
 
+    // Notification
+    NOTIFICATION_NOT_FOUND(HttpStatus.NOT_FOUND, "N001", "알림을 찾을 수 없습니다."),
+
     // Device
     DEVICE_NOT_REGISTERED(HttpStatus.NOT_FOUND, "D001", "등록되지 않은 디바이스입니다."),
     INVALID_EVENT_TYPE(HttpStatus.BAD_REQUEST, "D002", "알 수 없는 이벤트 타입입니다."),

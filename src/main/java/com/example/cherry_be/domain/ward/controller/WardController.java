@@ -4,6 +4,7 @@ import com.example.cherry_be.domain.health.dto.HealthResponse;
 import com.example.cherry_be.domain.health.dto.HealthPatchRequest;
 import com.example.cherry_be.domain.health.dto.HealthPutRequest;
 import com.example.cherry_be.domain.log.dto.LogPageResponse;
+import com.example.cherry_be.domain.notification.dto.NotificationPageResponse;
 import com.example.cherry_be.domain.ward.dto.*;
 import com.example.cherry_be.domain.ward.service.WardService;
 import jakarta.validation.Valid;
@@ -130,6 +131,42 @@ public class WardController {
             Authentication authentication,
             @Valid @RequestBody HealthPatchRequest request) {
         return ResponseEntity.ok(wardService.patchHealth(authentication.getName(), request));
+    }
+
+
+    // ── 알림함 (#25) ────────────────────────────────
+
+    /**
+     * [GET] /api/wards/me/notifications — 알림 목록 (최신순)
+     */
+    @GetMapping("/me/notifications")
+    public ResponseEntity<NotificationPageResponse> getNotifications(
+            Authentication authentication,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        return ResponseEntity.ok(
+                wardService.getNotifications(authentication.getName(), pageable));
+    }
+
+    /**
+     * [PATCH] /api/wards/me/notifications/{notificationId}/read — 단건 읽음 처리
+     */
+    @PatchMapping("/me/notifications/{notificationId}/read")
+    public ResponseEntity<Void> readNotification(
+            Authentication authentication,
+            @PathVariable Long notificationId) {
+        wardService.readNotification(authentication.getName(), notificationId);
+        return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * [PATCH] /api/wards/me/notifications/read-all — 전체 읽음 처리
+     */
+    @PatchMapping("/me/notifications/read-all")
+    public ResponseEntity<Void> readAllNotifications(Authentication authentication) {
+        wardService.readAllNotifications(authentication.getName());
+        return ResponseEntity.noContent().build();
     }
 
 }
