@@ -2,6 +2,7 @@ package com.example.cherry_be.domain.notification.entity;
 
 import com.example.cherry_be.domain.log.entity.Log;
 import com.example.cherry_be.domain.member.entity.Member;
+import com.example.cherry_be.domain.organization.entity.Organization;
 import com.example.cherry_be.domain.user.entity.User;
 import com.example.cherry_be.global.common.BaseTimeEntity;
 import jakarta.persistence.*;
@@ -35,11 +36,18 @@ public class Notification extends BaseTimeEntity {
     @JoinColumn(name = "member_id", nullable = false)
     private Member member;
 
-    // 누구에게 보냈나 (수신자)
-    // 기관이 등록한 피보호자는 연결된 보호자가 없을 수 있어 nullable 로 둔다.
+    // ── 수신자 ────────────────────────────────────────
+    // 보호자(users)와 기관(organization)은 서로 다른 테이블이라 단일 FK 로 표현할 수 없다.
+    // 피보호자는 보호자 또는 기관 한쪽에만 속하므로 항상 둘 중 하나만 채워진다.
+    // 타입+ID 대신 실제 FK 두 개를 둬서 무결성 제약과 조인을 그대로 활용한다.
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
-    private User user;
+    private User user;              // 보호자 수신자
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "organization_id")
+    private Organization organization;   // 기관(사회복지사) 수신자
 
     // 어떤 사건 때문인가. DEVICE_OFFLINE 처럼 대응 로그가 없는 알림도 있어 nullable.
     @ManyToOne(fetch = FetchType.LAZY)
@@ -54,9 +62,11 @@ public class Notification extends BaseTimeEntity {
     private boolean isRead;
 
     @Builder
-    public Notification(Member member, User user, Log log, NotificationType notificationType) {
+    public Notification(Member member, User user, Organization organization,
+                        Log log, NotificationType notificationType) {
         this.member = member;
         this.user = user;
+        this.organization = organization;
         this.log = log;
         this.notificationType = notificationType;
         this.isRead = false;

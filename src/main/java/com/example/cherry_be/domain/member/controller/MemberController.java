@@ -144,5 +144,4 @@ public class MemberController {
         return ResponseEntity.ok(
                 memberService.patchHealth(authentication.getName(), targetId, request));
     }
-
 }

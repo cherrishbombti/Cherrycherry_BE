@@ -6,6 +6,7 @@ import com.example.cherry_be.domain.notification.dto.NotificationPageResponse;
 import com.example.cherry_be.domain.notification.entity.Notification;
 import com.example.cherry_be.domain.notification.entity.NotificationType;
 import com.example.cherry_be.domain.notification.repository.NotificationRepository;
+import com.example.cherry_be.domain.organization.entity.Organization;
 import com.example.cherry_be.domain.user.entity.User;
 import com.example.cherry_be.global.exception.CustomException;
 import com.example.cherry_be.global.exception.ErrorCode;
@@ -16,6 +17,12 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * 알림함 조회·읽음 처리 및 알림 생성.
+ *
+ * 수신자는 보호자(User)와 기관(Organization) 두 종류이며,
+ * 피보호자가 어느 쪽에 속하는지에 따라 결정된다.
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -23,23 +30,16 @@ public class NotificationService {
 
     private final NotificationRepository notificationRepository;
 
-    // ── 조회 ────────────────────────────────────────────
+    // ── 보호자 수신함 ────────────────────────────────
 
     @Transactional(readOnly = true)
     public NotificationPageResponse getNotifications(User user, Pageable pageable) {
         Page<Notification> notifications =
                 notificationRepository.findByUserOrderByCreatedAtDesc(user, pageable);
-        long unreadCount = notificationRepository.countByUserAndIsReadFalse(user);
-        return NotificationPageResponse.of(notifications, unreadCount);
+        return NotificationPageResponse.of(
+                notifications, notificationRepository.countByUserAndIsReadFalse(user));
     }
 
-    // ── 읽음 처리 ────────────────────────────────────────
-
-    /**
-     * 단건 읽음 처리.
-     * 조회 시 수신자까지 함께 확인해 타인의 알림에는 접근할 수 없도록 한다.
-     * 존재하지 않는 경우와 남의 알림인 경우를 동일하게 404 로 응답해 존재 여부를 노출하지 않는다.
-     */
     @Transactional
     public void markAsRead(User user, Long notificationId) {
         Notification notification = notificationRepository.findByIdAndUser(notificationId, user)
@@ -51,32 +51,61 @@ public class NotificationService {
         notification.markAsRead();
     }
 
-    /**
-     * 전체 읽음 처리. 건별 UPDATE 를 피하기 위해 벌크 연산을 사용한다.
-     */
     @Transactional
     public int markAllAsRead(User user) {
         return notificationRepository.markAllAsReadByUser(user);
     }
 
-    // ── 생성 ────────────────────────────────────────────
+    // ── 기관 수신함 ──────────────────────────────────
+
+    @Transactional(readOnly = true)
+    public NotificationPageResponse getNotifications(Organization organization, Pageable pageable) {
+        Page<Notification> notifications =
+                notificationRepository.findByOrganizationOrderByCreatedAtDesc(organization, pageable);
+        return NotificationPageResponse.of(
+                notifications, notificationRepository.countByOrganizationAndIsReadFalse(organization));
+    }
+
+    @Transactional
+    public void markAsRead(Organization organization, Long notificationId) {
+        Notification notification =
+                notificationRepository.findByIdAndOrganization(notificationId, organization)
+                        .orElseThrow(() -> {
+                            log.warn("타 기관 알림 접근 시도 - orgId: {}, notificationId: {}",
+                                    organization.getId(), notificationId);
+                            return new CustomException(ErrorCode.NOTIFICATION_NOT_FOUND);
+                        });
+        notification.markAsRead();
+    }
+
+    @Transactional
+    public int markAllAsRead(Organization organization) {
+        return notificationRepository.markAllAsReadByOrganization(organization);
+    }
+
+    // ── 생성 ────────────────────────────────────────
 
     /**
-     * 알림 생성.
+     * 알림 생성. 피보호자에 연결된 수신자(보호자 또는 기관)를 찾아 저장한다.
      *
-     * 수신자가 없으면(기관이 등록해 연결된 보호자가 없는 피보호자) 저장하지 않는다.
-     * 알림 생성 실패가 본래 흐름(낙상 이력 저장)을 막아서는 안 되므로 호출부에서 예외를 전파하지 않는다.
+     * 보호자와 기관은 같은 피보호자를 공유하지 않으므로 둘 중 하나만 채워진다.
+     * 수신자가 아예 없으면 알릴 대상이 없으므로 저장하지 않는다.
      */
     @Transactional
-    public void create(Member member, Log log, NotificationType type) {
-        User receiver = member.getUser();
-        if (receiver == null) {
+    public void create(Member member, Log fallLog, NotificationType type) {
+        User guardian = member.getUser();
+        Organization organization = member.getOrganization();
+
+        if (guardian == null && organization == null) {
+            log.warn("수신자가 없어 알림을 생성하지 않음 - memberId: {}", member.getId());
             return;
         }
+
         notificationRepository.save(Notification.builder()
                 .member(member)
-                .user(receiver)
-                .log(log)
+                .user(guardian)
+                .organization(organization)
+                .log(fallLog)
                 .notificationType(type)
                 .build());
     }
