@@ -15,7 +15,17 @@ import java.util.Optional;
 public interface NotificationRepository extends JpaRepository<Notification, Long> {
 
     // ── 보호자(User) 수신함 ──────────────────────────
-    Page<Notification> findByUserOrderByCreatedAtDesc(User user, Pageable pageable);
+
+    /**
+     * 목록 조회 시 member 를 함께 가져온다.
+     * 응답에 피보호자 이름이 들어가는데, LAZY 프록시를 그대로 두면
+     * 알림 건수만큼 member_info 조회 쿼리가 추가로 나간다(N+1).
+     * log 는 id 만 사용하므로 프록시가 초기화되지 않아 fetch 대상에서 제외한다.
+     */
+    @Query(value = "SELECT n FROM Notification n JOIN FETCH n.member "
+                 + "WHERE n.user = :user ORDER BY n.createdAt DESC",
+           countQuery = "SELECT COUNT(n) FROM Notification n WHERE n.user = :user")
+    Page<Notification> findByUserOrderByCreatedAtDesc(@Param("user") User user, Pageable pageable);
 
     long countByUserAndIsReadFalse(User user);
 
@@ -27,7 +37,12 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
     int markAllAsReadByUser(@Param("user") User user);
 
     // ── 기관(Organization) 수신함 ────────────────────
-    Page<Notification> findByOrganizationOrderByCreatedAtDesc(Organization organization, Pageable pageable);
+
+    @Query(value = "SELECT n FROM Notification n JOIN FETCH n.member "
+                 + "WHERE n.organization = :organization ORDER BY n.createdAt DESC",
+           countQuery = "SELECT COUNT(n) FROM Notification n WHERE n.organization = :organization")
+    Page<Notification> findByOrganizationOrderByCreatedAtDesc(
+            @Param("organization") Organization organization, Pageable pageable);
 
     long countByOrganizationAndIsReadFalse(Organization organization);
 

@@ -43,8 +43,9 @@ public class DeviceService {
         Boolean radar = sensorStatus.getRadar();
         Boolean thermal = sensorStatus.getThermalImaging();
 
-        // 3. 상태가 변경됐으면 FALL_EVENT 로그 저장 + 보호자에게 알림 생성
-        if (member.getStatus() != newStatus) {
+        // 3. 상태가 변경됐으면 FALL_EVENT 로그 저장 + 수신자에게 알림 생성
+        MemberStatus previousStatus = member.getStatus();
+        if (previousStatus != newStatus) {
             Log fallLog = logRepository.save(Log.builder()
                     .member(member)
                     .organization(member.getOrganization())
@@ -52,9 +53,11 @@ public class DeviceService {
                     .logType(LogType.FALL_EVENT)
                     .build());
 
-            // SAFE 로 회복되는 것은 알릴 필요가 없으므로 WARNING/DANGER 전환만 알림 대상으로 본다.
-            // 수신자(보호자)가 없는 피보호자는 NotificationService 내부에서 건너뛴다.
-            if (newStatus != MemberStatus.SAFE) {
+            // 상태가 나빠질 때만 알린다.
+            // 회복(DANGER -> WARNING, -> SAFE)은 알릴 필요가 없고,
+            // 특히 DANGER -> WARNING 을 알리면 위험이 낮아졌는데도 주의 알림이 가서 혼란을 준다.
+            // 이력(fall_log)에는 모든 변화가 남으므로 회복 기록이 유실되지는 않는다.
+            if (newStatus.isMoreSevereThan(previousStatus)) {
                 notificationService.create(member, fallLog, toNotificationType(newStatus));
             }
         }
