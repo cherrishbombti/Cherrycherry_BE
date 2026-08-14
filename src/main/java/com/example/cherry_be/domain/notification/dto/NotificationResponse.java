@@ -14,6 +14,7 @@ public class NotificationResponse {
 
     private Long id;
     private NotificationType notificationType; // FALL / WARNING / DEVICE_OFFLINE / EMERGENCY
+    private Long memberId;                     // 알림 클릭 시 피보호자 상세로 이동하기 위한 식별자
     private String memberName;                 // 누구에 관한 알림인지
     private Long logId;                        // 연결된 이력 (없으면 null)
     // boolean 필드는 getter 가 isRead() 로 생성되어 Jackson 이 "read" 로 직렬화한다.
@@ -26,6 +27,7 @@ public class NotificationResponse {
         return NotificationResponse.builder()
                 .id(notification.getId())
                 .notificationType(notification.getNotificationType())
+                .memberId(notification.getMember().getId())
                 .memberName(notification.getMember().getName())
                 .logId(notification.getLog() != null ? notification.getLog().getId() : null)
                 .isRead(notification.isRead())
