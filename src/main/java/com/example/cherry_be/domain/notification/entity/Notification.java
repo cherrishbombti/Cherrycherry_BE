@@ -37,9 +37,13 @@ public class Notification extends BaseTimeEntity {
     private Member member;
 
     // ── 수신자 ────────────────────────────────────────
-    // 보호자(users)와 기관(organization)은 서로 다른 테이블이라 단일 FK 로 표현할 수 없다.
-    // 피보호자는 보호자 또는 기관 한쪽에만 속하므로 항상 둘 중 하나만 채워진다.
-    // 타입+ID 대신 실제 FK 두 개를 둬서 무결성 제약과 조인을 그대로 활용한다.
+    // 보호자(users)와 기관(organization)은 서로 다른 테이블이라 단일 FK 로 표현할 수 없어
+    // 타입+ID 대신 실제 FK 두 개를 둔다. (무결성 제약과 조인을 그대로 활용)
+    //
+    // 한 행에는 수신자가 반드시 하나만 들어간다.
+    // 두 수신자가 한 행을 공유하면 is_read 도 공유되어, 한쪽이 읽으면 다른 쪽에서도
+    // 읽은 것으로 보인다. 향후 보호자와 기관이 같은 피보호자를 함께 관리하게 되면
+    // 실제 알림을 놓치는 문제로 이어지므로, 수신자마다 행을 따로 만든다.
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
@@ -64,12 +68,24 @@ public class Notification extends BaseTimeEntity {
     @Builder
     public Notification(Member member, User user, Organization organization,
                         Log log, NotificationType notificationType) {
+        validateSingleReceiver(user, organization);
         this.member = member;
         this.user = user;
         this.organization = organization;
         this.log = log;
         this.notificationType = notificationType;
         this.isRead = false;
+    }
+
+    /**
+     * 수신자는 정확히 하나여야 한다.
+     * 컬럼이 두 개라 스키마만으로는 강제할 수 없어 생성 시점에 검증한다.
+     */
+    private void validateSingleReceiver(User user, Organization organization) {
+        if ((user == null) == (organization == null)) {
+            throw new IllegalArgumentException(
+                    "알림 수신자는 보호자와 기관 중 정확히 하나여야 합니다.");
+        }
     }
 
     /** 이미 읽은 알림을 다시 읽어도 상태가 바뀌지 않도록 한다. */

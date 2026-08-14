@@ -86,10 +86,12 @@ public class NotificationService {
     // ── 생성 ────────────────────────────────────────
 
     /**
-     * 알림 생성. 피보호자에 연결된 수신자(보호자 또는 기관)를 찾아 저장한다.
+     * 알림 생성. 피보호자에 연결된 수신자마다 행을 따로 만든다.
      *
-     * 보호자와 기관은 같은 피보호자를 공유하지 않으므로 둘 중 하나만 채워진다.
-     * 수신자가 아예 없으면 알릴 대상이 없으므로 저장하지 않는다.
+     * 현재는 보호자와 기관이 같은 피보호자를 공유하지 않아 항상 1건만 생성되지만,
+     * 향후 두 주체가 함께 관리하게 되면 수신자별로 2건이 생성된다.
+     * 한 행을 공유하면 is_read 도 공유되어 한쪽이 읽었을 때 다른 쪽에서도
+     * 읽음으로 표시되므로, 처음부터 수신자 단위로 분리해 둔다.
      */
     @Transactional
     public void create(Member member, Log fallLog, NotificationType type) {
@@ -101,12 +103,22 @@ public class NotificationService {
             return;
         }
 
-        notificationRepository.save(Notification.builder()
-                .member(member)
-                .user(guardian)
-                .organization(organization)
-                .log(fallLog)
-                .notificationType(type)
-                .build());
+        if (guardian != null) {
+            notificationRepository.save(Notification.builder()
+                    .member(member)
+                    .user(guardian)
+                    .log(fallLog)
+                    .notificationType(type)
+                    .build());
+        }
+
+        if (organization != null) {
+            notificationRepository.save(Notification.builder()
+                    .member(member)
+                    .organization(organization)
+                    .log(fallLog)
+                    .notificationType(type)
+                    .build());
+        }
     }
 }
