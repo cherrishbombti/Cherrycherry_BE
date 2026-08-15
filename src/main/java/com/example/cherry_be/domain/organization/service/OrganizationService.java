@@ -1,6 +1,8 @@
 package com.example.cherry_be.domain.organization.service;
 
 import com.example.cherry_be.domain.organization.entity.Organization;
+import com.example.cherry_be.domain.notification.dto.NotificationPageResponse;
+import com.example.cherry_be.domain.notification.service.NotificationService;
 import com.example.cherry_be.domain.organization.dto.OrgMeResponse;
 import com.example.cherry_be.domain.organization.repository.OrganizationRepository;
 import com.example.cherry_be.global.exception.CustomException;
@@ -8,6 +10,7 @@ import com.example.cherry_be.global.exception.ErrorCode;
 import com.example.cherry_be.global.auth.JwtUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.concurrent.ThreadLocalRandom;
@@ -21,6 +24,13 @@ public class OrganizationService {
     private final OrganizationRepository organizationRepository;
     private final PasswordEncoder passwordEncoder; // 비밀번호 암호화 도구
     private final JwtUtil jwtUtil;
+    private final NotificationService notificationService;
+
+    /** 로그인 ID로 기관 조회 (로그인 실패는 별도 코드를 쓰므로 여기서 처리하지 않는다) */
+    private Organization findOrganization(String orgId) {
+        return organizationRepository.findByOrgId(orgId)
+                .orElseThrow(() -> new CustomException(ErrorCode.ORG_NOT_FOUND));
+    }
 
     /**
      * 기관 회원가입 (계정 생성) 로직
@@ -79,9 +89,26 @@ public class OrganizationService {
      */
     @Transactional(readOnly = true)
     public OrgMeResponse getMyInfo(String orgId) {
-        Organization organization = organizationRepository.findByOrgId(orgId)
-                .orElseThrow(() -> new CustomException(ErrorCode.ORG_NOT_FOUND));
-        return OrgMeResponse.from(organization);
+        return OrgMeResponse.from(findOrganization(orgId));
+    }
+
+
+    // ── 알림함 (#25) ────────────────────────────────
+    // 기관 계정 기준 수신함이라 특정 피보호자에 종속되지 않는다.
+
+    @Transactional(readOnly = true)
+    public NotificationPageResponse getNotifications(String orgId, Pageable pageable) {
+        return notificationService.getNotifications(findOrganization(orgId), pageable);
+    }
+
+    @Transactional
+    public void readNotification(String orgId, Long notificationId) {
+        notificationService.markAsRead(findOrganization(orgId), notificationId);
+    }
+
+    @Transactional
+    public int readAllNotifications(String orgId) {
+        return notificationService.markAllAsRead(findOrganization(orgId));
     }
 
 }

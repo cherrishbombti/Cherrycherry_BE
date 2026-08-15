@@ -6,6 +6,8 @@ import com.example.cherry_be.domain.health.dto.HealthPutRequest;
 import com.example.cherry_be.domain.health.entity.UpdatedByType;
 import com.example.cherry_be.domain.health.service.MemberHealthService;
 import com.example.cherry_be.domain.log.dto.LogPageResponse;
+import com.example.cherry_be.domain.notification.dto.NotificationPageResponse;
+import com.example.cherry_be.domain.notification.service.NotificationService;
 import com.example.cherry_be.domain.log.entity.Log;
 import com.example.cherry_be.domain.log.entity.LogType;
 import com.example.cherry_be.domain.log.repository.LogRepository;
@@ -39,6 +41,7 @@ public class WardService {
     private final LogQueryService logQueryService;
     private final LogRepository logRepository;
     private final MemberHealthService memberHealthService;
+    private final NotificationService notificationService;
 
     private User getGuardian(String oauthEmail) {
         return userRepository.findByOauthEmail(oauthEmail)
@@ -202,6 +205,33 @@ public class WardService {
                 .id(guardian.getId())
                 .name(guardian.getName())
                 .build();
+    }
+
+
+    // ── 알림함 (#25) ────────────────────────────────
+
+    /**
+     * [GET] /api/wards/me/notifications
+     */
+    @Transactional(readOnly = true)
+    public NotificationPageResponse getNotifications(String oauthEmail, Pageable pageable) {
+        return notificationService.getNotifications(getGuardian(oauthEmail), pageable);
+    }
+
+    /**
+     * [PATCH] /api/wards/me/notifications/{id}/read
+     */
+    @Transactional
+    public void readNotification(String oauthEmail, Long notificationId) {
+        notificationService.markAsRead(getGuardian(oauthEmail), notificationId);
+    }
+
+    /**
+     * [PATCH] /api/wards/me/notifications/read-all
+     */
+    @Transactional
+    public int readAllNotifications(String oauthEmail) {
+        return notificationService.markAllAsRead(getGuardian(oauthEmail));
     }
 
 }
