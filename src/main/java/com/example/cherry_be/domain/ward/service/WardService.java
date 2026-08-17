@@ -128,11 +128,14 @@ public class WardService {
     public WardContactResponse addContact(String oauthEmail, WardContactRequest request) {
         Member ward = getWard(getGuardian(oauthEmail));
 
+        int nextPriority = (int) emergencyContactRepository.countByMember(ward) + 1;
+
         EmergencyContact contact = EmergencyContact.builder()
                 .member(ward)
                 .name(request.getName())
                 .phone(request.getPhone())
                 .relationship(request.getRelationship())
+                .priority(nextPriority)
                 .build();
 
         return WardContactResponse.from(emergencyContactRepository.save(contact));

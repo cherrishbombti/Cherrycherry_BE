@@ -10,4 +10,6 @@ public interface EmergencyContactRepository extends JpaRepository<EmergencyConta
 
     // 특정 피보호자의 비상연락망 전체 조회
     List<EmergencyContact> findByMember(Member member);
+    // 우선순위 계산용: 현재 등록된 연락처 수
+    long countByMember(Member member);
 }
