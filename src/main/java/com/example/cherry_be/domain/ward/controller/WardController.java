@@ -73,6 +73,25 @@ public class WardController {
         return ResponseEntity.ok(wardService.addContact(authentication.getName(), request));
     }
 
+    /** [PUT] /api/wards/me/contacts/{contactId} — 비상연락망 수정 */
+    @PutMapping("/me/contacts/{contactId}")
+    public ResponseEntity<WardContactResponse> updateContact(
+            Authentication authentication,
+            @PathVariable Long contactId,
+            @RequestBody WardContactRequest request) {
+        return ResponseEntity.ok(
+                wardService.updateContact(authentication.getName(), contactId, request));
+    }
+
+    /** [DELETE] /api/wards/me/contacts/{contactId} — 비상연락망 삭제 */
+    @DeleteMapping("/me/contacts/{contactId}")
+    public ResponseEntity<Void> deleteContact(
+            Authentication authentication,
+            @PathVariable Long contactId) {
+        wardService.deleteContact(authentication.getName(), contactId);
+        return ResponseEntity.noContent().build();
+    }
+
     /**
      * [GET] /api/wards/me/logs — 낙상 이력 조회
      * ?page=0&size=20 (기본) 또는 ?from=YYYY-MM-DD&to=YYYY-MM-DD

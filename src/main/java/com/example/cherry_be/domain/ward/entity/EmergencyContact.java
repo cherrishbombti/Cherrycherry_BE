@@ -44,4 +44,11 @@ public class EmergencyContact {
         this.relationship = relationship;
         this.priority = priority;
     }
+
+    /** 연락처 정보 수정 (JPA 변경감지로 저장 반영) */
+    public void update(String name, String phone, String relationship) {
+        this.name = name;
+        this.phone = phone;
+        this.relationship = relationship;
+    }
 }
