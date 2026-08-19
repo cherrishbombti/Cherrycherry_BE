@@ -69,7 +69,7 @@ public class WardController {
     @PostMapping("/me/contacts")
     public ResponseEntity<WardContactResponse> addContact(
             Authentication authentication,
-            @RequestBody WardContactRequest request) {
+            @Valid @RequestBody WardContactRequest request) {
         return ResponseEntity.ok(wardService.addContact(authentication.getName(), request));
     }
 
@@ -78,7 +78,7 @@ public class WardController {
     public ResponseEntity<WardContactResponse> updateContact(
             Authentication authentication,
             @PathVariable Long contactId,
-            @RequestBody WardContactRequest request) {
+            @Valid @RequestBody WardContactRequest request) {
         return ResponseEntity.ok(
                 wardService.updateContact(authentication.getName(), contactId, request));
     }

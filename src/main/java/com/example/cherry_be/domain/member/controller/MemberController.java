@@ -34,7 +34,7 @@ public class MemberController {
     @PostMapping
     public ResponseEntity<String> registerMember(
             Authentication authentication,
-            @RequestBody MemberRegisterRequest request) {
+            @Valid @RequestBody MemberRegisterRequest request) {
         String orgId = authentication.getName();
         Long savedId = memberService.registerMember(orgId, request);
         return ResponseEntity.ok("피보호자 등록 완료. ID: " + savedId);

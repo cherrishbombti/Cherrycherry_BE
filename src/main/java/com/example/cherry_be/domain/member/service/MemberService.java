@@ -16,6 +16,7 @@ import com.example.cherry_be.domain.member.repository.MemberRepository;
 import com.example.cherry_be.domain.organization.entity.Organization;
 import com.example.cherry_be.domain.organization.repository.OrganizationRepository;
 import com.example.cherry_be.global.exception.CustomException;
+import com.example.cherry_be.global.util.PhoneNumberUtils;
 import com.example.cherry_be.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -58,7 +59,7 @@ public class MemberService {
                 .name(request.getName())
                 .age(request.getAge())
                 .address(request.getAddress())
-                .contact(request.getContact())
+                .contact(PhoneNumberUtils.normalize(request.getContact()))
                 .deviceMac(request.getDeviceMac())
                 .build();
         return memberRepository.save(member).getId();
