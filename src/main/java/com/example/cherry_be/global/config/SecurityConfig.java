@@ -69,6 +69,8 @@ public class SecurityConfig {
                         // 역할 기반 접근 제어
                         .requestMatchers("/api/wards/**").hasRole("USER")                 // 보호자(가족)
                         .requestMatchers("/api/targets/**", "/api/reports/**","/api/org/**").hasRole("ADMIN") // 기관(사회복지사)
+                        // 푸시 토큰은 보호자·기관 모두 등록하므로 역할 제한 없이 인증만 요구
+                        .requestMatchers("/api/push/**").authenticated()
                         .anyRequest().authenticated()
                 )
 
