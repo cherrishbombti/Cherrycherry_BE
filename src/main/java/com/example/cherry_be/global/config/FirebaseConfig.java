@@ -8,7 +8,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.io.ClassPathResource;
 
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStream;
 
@@ -29,10 +31,6 @@ public class FirebaseConfig {
     @Value("${firebase.enabled}")
     private boolean enabled;
 
-    /**
-     * FirebaseMessaging 빈. 초기화에 실패하면 null 을 반환하고,
-     * 발송 측에서 null 여부를 확인해 건너뛴다.
-     */
     @Bean
     public FirebaseMessaging firebaseMessaging() {
         if (!enabled) {
@@ -40,7 +38,14 @@ public class FirebaseConfig {
             return null;
         }
 
-        try (InputStream keyStream = new FileInputStream(serviceAccountPath)) {
+        try (InputStream keyStream = openKeyStream()) {
+            if (keyStream == null) {
+                log.error("Firebase 키 파일을 찾을 수 없습니다. 푸시 발송이 비활성화됩니다."
+                                + " 설정값={}, 실행 위치={}",
+                        serviceAccountPath, new File("").getAbsolutePath());
+                return null;
+            }
+
             FirebaseApp app = FirebaseApp.getApps().isEmpty()
                     ? FirebaseApp.initializeApp(FirebaseOptions.builder()
                             .setCredentials(GoogleCredentials.fromStream(keyStream))
@@ -51,9 +56,29 @@ public class FirebaseConfig {
             return FirebaseMessaging.getInstance(app);
 
         } catch (Exception e) {
-            log.error("Firebase 초기화 실패. 푸시 발송이 비활성화됩니다. path={}, 사유={}",
-                    serviceAccountPath, e.getMessage());
+            log.error("Firebase 초기화 실패. 푸시 발송이 비활성화됩니다. 사유={}", e.getMessage());
             return null;
         }
+    }
+
+    /**
+     * 키 파일을 찾는다.
+     * 실행 위치에 따라 상대 경로가 어긋날 수 있어 파일시스템 → 클래스패스 순으로 시도한다.
+     * 배포 환경에서는 절대 경로를 환경변수로 지정하는 것을 권장한다.
+     */
+    private InputStream openKeyStream() throws Exception {
+        File file = new File(serviceAccountPath);
+        if (file.exists()) {
+            log.info("Firebase 키 파일 사용: {}", file.getAbsolutePath());
+            return new FileInputStream(file);
+        }
+
+        ClassPathResource resource = new ClassPathResource(serviceAccountPath);
+        if (resource.exists()) {
+            log.info("Firebase 키 파일 사용(classpath): {}", serviceAccountPath);
+            return resource.getInputStream();
+        }
+
+        return null;
     }
 }
