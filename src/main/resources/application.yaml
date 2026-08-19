@@ -83,5 +83,11 @@ logging:
     org.springframework.security.oauth2: DEBUG
     # 인증 성공 후 유저 정보를 불러오는 과정을 상세히 보여줍니다.
 
+firebase:
+  # 서비스 계정 키 경로. 파일은 secrets/ 아래에 두며 커밋하지 않는다.
+  service-account-path: ${FIREBASE_SERVICE_ACCOUNT_PATH:secrets/firebase-service-account.json}
+  # 로컬·테스트에서 실제 발송을 막고 싶을 때 false
+  enabled: ${FIREBASE_ENABLED:true}
+
 frontend:
   redirect-url: ${FRONTEND_REDIRECT_URL:http://localhost:5173/oauth/callback}

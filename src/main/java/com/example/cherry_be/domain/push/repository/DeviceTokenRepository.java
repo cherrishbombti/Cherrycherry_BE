@@ -17,6 +17,11 @@ public interface DeviceTokenRepository extends JpaRepository<DeviceToken, Long> 
 
     List<DeviceToken> findByOrganization(Organization organization);
 
+    // 비동기 발송에서는 엔티티 대신 ID 로 조회한다 (트랜잭션 밖이라 프록시를 쓸 수 없음)
+    List<DeviceToken> findByUserId(Long userId);
+
+    List<DeviceToken> findByOrganizationId(Long organizationId);
+
     // 로그아웃 시 해당 기기 토큰 제거
     void deleteByToken(String token);
 }

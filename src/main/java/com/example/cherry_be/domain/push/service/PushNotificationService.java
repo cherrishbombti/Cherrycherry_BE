@@ -1,0 +1,87 @@
+package com.example.cherry_be.domain.push.service;
+
+import com.example.cherry_be.domain.push.dto.PushPayload;
+import com.example.cherry_be.domain.push.entity.DeviceToken;
+import com.example.cherry_be.domain.push.repository.DeviceTokenRepository;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.annotation.Async;
+import org.springframework.stereotype.Service;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+/**
+ * 알림 1건을 수신자의 모든 기기로 푸시한다.
+ *
+ * 알림 저장(NotificationService)과 발송을 분리한 이유
+ *  - 발송은 외부 호출이라 느리고 실패할 수 있다
+ *  - 저장 트랜잭션 안에서 처리하면 발송 지연이 곧 기기 데이터 수신 지연이 된다
+ */
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class PushNotificationService {
+
+    private final DeviceTokenRepository deviceTokenRepository;
+    private final FcmSender fcmSender;
+
+    /**
+     * 비동기 발송. 호출부는 결과를 기다리지 않는다.
+     */
+    @Async("pushTaskExecutor")
+    public void push(PushPayload payload) {
+        try {
+            List<DeviceToken> targets = findTargets(payload);
+            if (targets.isEmpty()) {
+                log.debug("등록된 기기가 없어 푸시를 건너뜁니다 - notificationId: {}", payload.notificationId());
+                return;
+            }
+            fcmSender.send(targets, buildTitle(payload), buildBody(payload), buildData(payload));
+
+        } catch (Exception e) {
+            // 푸시 실패가 본래 흐름에 영향을 주지 않도록 여기서 삼킨다.
+            log.error("푸시 처리 실패 - notificationId: {}, 사유: {}",
+                    payload.notificationId(), e.getMessage());
+        }
+    }
+
+    private List<DeviceToken> findTargets(PushPayload payload) {
+        return payload.userId() != null
+                ? deviceTokenRepository.findByUserId(payload.userId())
+                : deviceTokenRepository.findByOrganizationId(payload.organizationId());
+    }
+
+    private String buildTitle(PushPayload payload) {
+        return switch (payload.type()) {
+            case FALL -> "낙상이 감지되었습니다";
+            case WARNING -> "주의가 필요한 상태입니다";
+            case DEVICE_OFFLINE -> "기기 연결이 끊겼습니다";
+            case EMERGENCY -> "긴급 상황이 발생했습니다";
+        };
+    }
+
+    /**
+     * 알림 문구에는 최소한의 정보만 담는다.
+     * 푸시 본문은 외부(FCM) 서버를 경유하고 잠금화면에도 노출되므로,
+     * 나이·주소·건강정보 등은 넣지 않고 앱에서 조회하도록 유도한다.
+     */
+    private String buildBody(PushPayload payload) {
+        return payload.memberName() + " 님의 상태를 확인해주세요.";
+    }
+
+    /**
+     * 클릭 시 화면 이동에 필요한 값. FCM 제약상 값은 모두 문자열이어야 한다.
+     */
+    private Map<String, String> buildData(PushPayload payload) {
+        Map<String, String> data = new HashMap<>();
+        data.put("notificationId", String.valueOf(payload.notificationId()));
+        data.put("memberId", String.valueOf(payload.memberId()));
+        data.put("notificationType", payload.type().name());
+        if (payload.logId() != null) {
+            data.put("logId", String.valueOf(payload.logId()));
+        }
+        return data;
+    }
+}

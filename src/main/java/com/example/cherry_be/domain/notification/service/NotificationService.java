@@ -7,6 +7,8 @@ import com.example.cherry_be.domain.notification.entity.Notification;
 import com.example.cherry_be.domain.notification.entity.NotificationType;
 import com.example.cherry_be.domain.notification.repository.NotificationRepository;
 import com.example.cherry_be.domain.organization.entity.Organization;
+import com.example.cherry_be.domain.push.dto.PushPayload;
+import com.example.cherry_be.domain.push.service.PushNotificationService;
 import com.example.cherry_be.domain.user.entity.User;
 import com.example.cherry_be.global.exception.CustomException;
 import com.example.cherry_be.global.exception.ErrorCode;
@@ -29,6 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class NotificationService {
 
     private final NotificationRepository notificationRepository;
+    private final PushNotificationService pushNotificationService;
 
     // ── 보호자 수신함 ────────────────────────────────
 
@@ -104,21 +107,23 @@ public class NotificationService {
         }
 
         if (guardian != null) {
-            notificationRepository.save(Notification.builder()
+            Notification saved = notificationRepository.save(Notification.builder()
                     .member(member)
                     .user(guardian)
                     .log(fallLog)
                     .notificationType(type)
                     .build());
+            pushNotificationService.push(PushPayload.from(saved));
         }
 
         if (organization != null) {
-            notificationRepository.save(Notification.builder()
+            Notification saved = notificationRepository.save(Notification.builder()
                     .member(member)
                     .organization(organization)
                     .log(fallLog)
                     .notificationType(type)
                     .build());
+            pushNotificationService.push(PushPayload.from(saved));
         }
     }
 }
