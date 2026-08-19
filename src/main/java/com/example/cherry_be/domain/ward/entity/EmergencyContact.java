@@ -32,9 +32,21 @@ public class EmergencyContact {
     @Column(name = "relation", nullable = false)
     private String relationship;
 
+    // 우선순위 (등록 순서). DB가 NOT NULL 이라 반드시 채워야 함.
+    @Column(nullable = false)
+    private int priority;
+
     @Builder
-    public EmergencyContact(Member member, String name, String phone, String relationship) {
+    public EmergencyContact(Member member, String name, String phone, String relationship, int priority) {
         this.member = member;
+        this.name = name;
+        this.phone = phone;
+        this.relationship = relationship;
+        this.priority = priority;
+    }
+
+    /** 연락처 정보 수정 (JPA 변경감지로 저장 반영) */
+    public void update(String name, String phone, String relationship) {
         this.name = name;
         this.phone = phone;
         this.relationship = relationship;

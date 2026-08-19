@@ -20,7 +20,7 @@ public class WardContactResponse {
                 .name(contact.getName())
                 .phone(contact.getPhone())
                 .relationship(contact.getRelationship())
-                .priority(0)
+                .priority(contact.getPriority())
                 .build();
     }
 }

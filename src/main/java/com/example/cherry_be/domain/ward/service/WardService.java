@@ -116,7 +116,7 @@ public class WardService {
     @Transactional(readOnly = true)
     public List<WardContactResponse> getContacts(String oauthEmail) {
         Member ward = getWard(getGuardian(oauthEmail));
-        return emergencyContactRepository.findByMember(ward).stream()
+        return emergencyContactRepository.findByMemberOrderByPriorityAsc(ward).stream()
                 .map(WardContactResponse::from)
                 .collect(Collectors.toList());
     }
@@ -124,20 +124,60 @@ public class WardService {
     /**
      * [POST] /api/wards/me/contacts
      */
+    private static final int MAX_CONTACTS = 5;
+
     @Transactional
     public WardContactResponse addContact(String oauthEmail, WardContactRequest request) {
         Member ward = getWard(getGuardian(oauthEmail));
+
+        // 개수 제한 (비상 연락망은 최대 5개)
+        if (emergencyContactRepository.countByMember(ward) >= MAX_CONTACTS) {
+            throw new CustomException(ErrorCode.CONTACT_LIMIT_EXCEEDED);
+        }
+
+        // 우선순위 = 현재 최대값 + 1 (삭제 후 재추가해도 번호가 겹치지 않음)
+        int nextPriority = emergencyContactRepository
+                .findTopByMemberOrderByPriorityDesc(ward)
+                .map(c -> c.getPriority() + 1)
+                .orElse(1);
 
         EmergencyContact contact = EmergencyContact.builder()
                 .member(ward)
                 .name(request.getName())
                 .phone(request.getPhone())
                 .relationship(request.getRelationship())
+                .priority(nextPriority)
                 .build();
 
         return WardContactResponse.from(emergencyContactRepository.save(contact));
     }
 
+    // 연락처를 찾고 현재 보호자의 피보호자 소유인지 검증
+    private EmergencyContact getOwnedContact(Member ward, Long contactId) {
+        EmergencyContact contact = emergencyContactRepository.findById(contactId)
+                .orElseThrow(() -> new CustomException(ErrorCode.CONTACT_NOT_FOUND));
+        if (!contact.getMember().getId().equals(ward.getId())) {
+            throw new CustomException(ErrorCode.CONTACT_ACCESS_DENIED);
+        }
+        return contact;
+    }
+
+    /** [PUT] /api/wards/me/contacts/{id} */
+    @Transactional
+    public WardContactResponse updateContact(String oauthEmail, Long contactId, WardContactRequest request) {
+        Member ward = getWard(getGuardian(oauthEmail));
+        EmergencyContact contact = getOwnedContact(ward, contactId);
+        contact.update(request.getName(), request.getPhone(), request.getRelationship());
+        return WardContactResponse.from(contact);
+    }
+
+    /** [DELETE] /api/wards/me/contacts/{id} */
+    @Transactional
+    public void deleteContact(String oauthEmail, Long contactId) {
+        Member ward = getWard(getGuardian(oauthEmail));
+        EmergencyContact contact = getOwnedContact(ward, contactId);
+        emergencyContactRepository.delete(contact);
+    }
     /**
      * [GET] /api/wards/me/logs — 내 피보호자 낙상 이력 조회
      */

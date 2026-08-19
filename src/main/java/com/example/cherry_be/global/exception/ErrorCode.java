@@ -31,6 +31,9 @@ public enum ErrorCode {
     MEMBER_NOT_FOUND(HttpStatus.NOT_FOUND, "M001", "연결된 피보호자를 찾을 수 없습니다."),
     WARD_ALREADY_EXISTS(HttpStatus.CONFLICT, "M002", "이미 등록된 피보호자가 있습니다."),
     DEVICE_ALREADY_EXISTS(HttpStatus.CONFLICT, "M003", "이미 등록된 디바이스입니다."),
+    CONTACT_NOT_FOUND(HttpStatus.NOT_FOUND, "M004", "존재하지 않는 비상 연락처입니다."),
+    CONTACT_ACCESS_DENIED(HttpStatus.FORBIDDEN, "M005", "해당 연락처에 접근 권한이 없습니다."),
+    CONTACT_LIMIT_EXCEEDED(HttpStatus.CONFLICT, "M006", "비상 연락처는 최대 5개까지 등록할 수 있습니다."),
 
     // Notification
     NOTIFICATION_NOT_FOUND(HttpStatus.NOT_FOUND, "N001", "알림을 찾을 수 없습니다."),
