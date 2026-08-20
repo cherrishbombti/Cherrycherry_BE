@@ -20,4 +20,7 @@ public interface EmergencyContactRepository extends JpaRepository<EmergencyConta
 
     // 우선순위가 가장 높은(숫자 큰) 연락처 1건 — 다음 우선순위 계산용
     Optional<EmergencyContact> findTopByMemberOrderByPriorityDesc(Member member);
+
+    // 피보호자 삭제 시 함께 정리한다 (member_id NOT NULL FK — 남아있으면 삭제가 막힌다)
+    void deleteByMember(Member member);
 }

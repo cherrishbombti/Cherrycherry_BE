@@ -121,4 +121,13 @@ public class NotificationService {
                     .build());
         }
     }
+
+    /**
+     * 피보호자 삭제 시 함께 정리한다.
+     * member_id 가 NOT NULL FK 라 남아있으면 피보호자 삭제 자체가 막힌다.
+     */
+    @Transactional
+    public void deleteByMember(Member member) {
+        notificationRepository.deleteByMember(member);
+    }
 }

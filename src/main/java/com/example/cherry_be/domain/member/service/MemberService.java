@@ -13,6 +13,7 @@ import com.example.cherry_be.domain.log.service.LogQueryService;
 import com.example.cherry_be.domain.member.entity.Member;
 import com.example.cherry_be.domain.member.entity.MemberStatus;
 import com.example.cherry_be.domain.member.repository.MemberRepository;
+import com.example.cherry_be.domain.notification.service.NotificationService;
 import com.example.cherry_be.domain.organization.entity.Organization;
 import com.example.cherry_be.domain.organization.repository.OrganizationRepository;
 import com.example.cherry_be.domain.ward.dto.WardContactResponse;
@@ -38,6 +39,7 @@ public class MemberService {
     private final EmergencyContactRepository emergencyContactRepository;
     private final LogQueryService logQueryService;
     private final MemberHealthService memberHealthService;
+    private final NotificationService notificationService;
 
     // JWT의 orgId로 Organization을 찾는 공통 메서드
     private Organization findOrganization(String orgId) {
@@ -110,10 +112,20 @@ public class MemberService {
      * [DELETE] /api/targets/{targetId}
      *
      * 보호자가 등록한 피보호자는 기관이 삭제할 수 없다.
+     *
+     * member_health(1:1)·emergency_contact·notification 은 member_id 가 NOT NULL FK 라
+     * 남아있으면 삭제 자체가 FK 위반(409)으로 막힌다. fall_log 는 Member.fallLogs 에
+     * cascade=REMOVE 가 걸려 있어 자동으로 정리되지만, 이 셋은 Member 쪽에 연관관계가
+     * 없어 직접 지워야 한다.
      */
     @Transactional
     public void deleteMember(String orgId, Long targetId) {
         Member member = findManagedMember(findOrganization(orgId), targetId, orgId);
+
+        memberHealthService.deleteByMember(member);
+        emergencyContactRepository.deleteByMember(member);
+        notificationService.deleteByMember(member);
+
         memberRepository.delete(member);
     }
 
