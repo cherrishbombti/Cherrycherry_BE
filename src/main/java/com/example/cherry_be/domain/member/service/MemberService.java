@@ -113,19 +113,15 @@ public class MemberService {
      *
      * 보호자가 등록한 피보호자는 기관이 삭제할 수 없다.
      *
-     * member_health(1:1)·emergency_contact·notification 은 member_id 가 NOT NULL FK 라
-     * 남아있으면 삭제 자체가 FK 위반(409)으로 막힌다. fall_log 는 Member.fallLogs 에
-     * cascade=REMOVE 가 걸려 있어 자동으로 정리되지만, 이 셋은 Member 쪽에 연관관계가
-     * 없어 직접 지워야 한다.
+     * fall_log·member_health·emergency_contact 는 Member 의 cascade 로 함께 지워진다.
+     * notification 만 Member 에 컬렉션을 두지 않아(건수가 많을 수 있음) 직접 지운다.
+     * 남겨두면 member_id NOT NULL FK 에 걸려 삭제 자체가 409 로 실패한다.
      */
     @Transactional
     public void deleteMember(String orgId, Long targetId) {
         Member member = findManagedMember(findOrganization(orgId), targetId, orgId);
 
-        memberHealthService.deleteByMember(member);
-        emergencyContactRepository.deleteByMember(member);
         notificationService.deleteByMember(member);
-
         memberRepository.delete(member);
     }
 
