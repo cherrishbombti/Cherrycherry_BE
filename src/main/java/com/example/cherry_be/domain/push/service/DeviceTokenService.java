@@ -59,11 +59,29 @@ public class DeviceTokenService {
     }
 
     /**
-     * 토큰 삭제(로그아웃 시). 이미 없으면 조용히 넘어간다.
+     * 토큰 삭제(로그아웃 시). 이미 없거나 본인 소유가 아니면 조용히 넘어간다.
+     *
+     * 토큰 값만으로 삭제하면 다른 사람의 토큰 문자열을 아는 것만으로 지울 수 있어,
+     * register()와 동일하게 인증 주체가 소유자인 경우에만 삭제한다.
      */
     @Transactional
-    public void delete(String token) {
-        deviceTokenRepository.deleteByToken(token);
+    public void delete(Authentication authentication, String token) {
+        boolean isOrganization = hasAdminRole(authentication);
+        String loginId = authentication.getName();
+
+        deviceTokenRepository.findByToken(token).ifPresent(existing -> {
+            boolean owned = isOrganization
+                    ? existing.getOrganization() != null
+                            && existing.getOrganization().getOrgId().equals(loginId)
+                    : existing.getUser() != null
+                            && existing.getUser().getOauthEmail().equals(loginId);
+
+            if (!owned) {
+                log.warn("소유하지 않은 토큰 삭제 시도 - loginId: {}", loginId);
+                return;
+            }
+            deviceTokenRepository.delete(existing);
+        });
     }
 
     private boolean hasAdminRole(Authentication authentication) {

@@ -1,5 +1,6 @@
 package com.example.cherry_be.domain.push.service;
 
+import com.example.cherry_be.domain.notification.event.NotificationCreatedEvent;
 import com.example.cherry_be.domain.push.dto.PushPayload;
 import com.example.cherry_be.domain.push.entity.DeviceToken;
 import com.example.cherry_be.domain.push.repository.DeviceTokenRepository;
@@ -7,6 +8,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.event.TransactionPhase;
+import org.springframework.transaction.event.TransactionalEventListener;
 
 import java.util.HashMap;
 import java.util.List;
@@ -18,6 +21,10 @@ import java.util.Map;
  * 알림 저장(NotificationService)과 발송을 분리한 이유
  *  - 발송은 외부 호출이라 느리고 실패할 수 있다
  *  - 저장 트랜잭션 안에서 처리하면 발송 지연이 곧 기기 데이터 수신 지연이 된다
+ *
+ * 발송은 알림 저장 트랜잭션이 커밋된 뒤에만 시작한다(AFTER_COMMIT).
+ * 트랜잭션 안에서 곧바로 비동기 호출하면 커밋 전에 발송되거나,
+ * 이후 롤백 시 존재하지 않는 알림에 대한 유령 푸시가 나갈 수 있다.
  */
 @Slf4j
 @Service
@@ -27,11 +34,16 @@ public class PushNotificationService {
     private final DeviceTokenRepository deviceTokenRepository;
     private final FcmSender fcmSender;
 
+    @Async("pushTaskExecutor")
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void onNotificationCreated(NotificationCreatedEvent event) {
+        push(event.payload());
+    }
+
     /**
      * 비동기 발송. 호출부는 결과를 기다리지 않는다.
      */
-    @Async("pushTaskExecutor")
-    public void push(PushPayload payload) {
+    private void push(PushPayload payload) {
         try {
             List<DeviceToken> targets = findTargets(payload);
             if (targets.isEmpty()) {

@@ -21,7 +21,4 @@ public interface DeviceTokenRepository extends JpaRepository<DeviceToken, Long> 
     List<DeviceToken> findByUserId(Long userId);
 
     List<DeviceToken> findByOrganizationId(Long organizationId);
-
-    // 로그아웃 시 해당 기기 토큰 제거
-    void deleteByToken(String token);
 }

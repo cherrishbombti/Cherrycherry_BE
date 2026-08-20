@@ -35,8 +35,10 @@ public class DeviceTokenController {
      * [DELETE] /api/push/token — 토큰 삭제 (로그아웃 시)
      */
     @DeleteMapping("/token")
-    public ResponseEntity<Void> delete(@RequestParam String token) {
-        deviceTokenService.delete(token);
+    public ResponseEntity<Void> delete(
+            Authentication authentication,
+            @RequestParam String token) {
+        deviceTokenService.delete(authentication, token);
         return ResponseEntity.noContent().build();
     }
 }

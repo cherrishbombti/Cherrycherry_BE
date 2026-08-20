@@ -5,15 +5,16 @@ import com.example.cherry_be.domain.member.entity.Member;
 import com.example.cherry_be.domain.notification.dto.NotificationPageResponse;
 import com.example.cherry_be.domain.notification.entity.Notification;
 import com.example.cherry_be.domain.notification.entity.NotificationType;
+import com.example.cherry_be.domain.notification.event.NotificationCreatedEvent;
 import com.example.cherry_be.domain.notification.repository.NotificationRepository;
 import com.example.cherry_be.domain.organization.entity.Organization;
 import com.example.cherry_be.domain.push.dto.PushPayload;
-import com.example.cherry_be.domain.push.service.PushNotificationService;
 import com.example.cherry_be.domain.user.entity.User;
 import com.example.cherry_be.global.exception.CustomException;
 import com.example.cherry_be.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -31,7 +32,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class NotificationService {
 
     private final NotificationRepository notificationRepository;
-    private final PushNotificationService pushNotificationService;
+    private final ApplicationEventPublisher eventPublisher;
 
     // ── 보호자 수신함 ────────────────────────────────
 
@@ -113,7 +114,7 @@ public class NotificationService {
                     .log(fallLog)
                     .notificationType(type)
                     .build());
-            pushNotificationService.push(PushPayload.from(saved));
+            eventPublisher.publishEvent(new NotificationCreatedEvent(PushPayload.from(saved)));
         }
 
         if (organization != null) {
@@ -123,7 +124,7 @@ public class NotificationService {
                     .log(fallLog)
                     .notificationType(type)
                     .build());
-            pushNotificationService.push(PushPayload.from(saved));
+            eventPublisher.publishEvent(new NotificationCreatedEvent(PushPayload.from(saved)));
         }
     }
 }
