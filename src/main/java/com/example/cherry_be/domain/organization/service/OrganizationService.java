@@ -45,19 +45,38 @@ public class OrganizationService {
         // 2. 비밀번호 암호화 (스프링 시큐리티 필수)
         String encodedPassword = passwordEncoder.encode(rawPassword);
 
-        // 3. 기관번호 임의 부여 (예: ORG-1234abcd 형식)
-        Long generatedOrganizeId = ThreadLocalRandom.current().nextLong(100000L, 1000000L); // 6자리 숫자
+        // 3. 기관번호 자동 부여 (보호자가 앱에서 입력할 번호)
+        Long orgCode = generateUniqueOrgCode();
 
         // 4. 엔티티 생성
         Organization organization = Organization.builder()
                 .orgId(orgId)
                 .password(encodedPassword)
                 .name(name)
-                .orgCode(generatedOrganizeId)
+                .orgCode(orgCode)
                 .build();
 
         // 5. DB에 저장 후, 생성된 고유 ID 반환
         return organizationRepository.save(organization).getId();
+    }
+
+    // 기관번호 채번 재시도 횟수. 이 정도면 실패 확률이 사실상 0이다.
+    private static final int ORG_CODE_MAX_ATTEMPTS = 10;
+
+    /**
+     * 중복되지 않는 6자리 기관번호를 만든다.
+     *
+     * 보호자는 이 번호 하나로 기관을 지정하므로 중복되면 엉뚱한 기관에 연동되거나
+     * 조회 자체가 실패한다. 랜덤이라 언젠가는 겹칠 수 있어 확인 후 재시도한다.
+     */
+    private Long generateUniqueOrgCode() {
+        for (int attempt = 0; attempt < ORG_CODE_MAX_ATTEMPTS; attempt++) {
+            Long candidate = ThreadLocalRandom.current().nextLong(100000L, 1000000L);
+            if (organizationRepository.findByOrgCode(candidate).isEmpty()) {
+                return candidate;
+            }
+        }
+        throw new CustomException(ErrorCode.ORG_CODE_GENERATION_FAILED);
     }
 
 
