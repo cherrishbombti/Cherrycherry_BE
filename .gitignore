@@ -179,4 +179,7 @@ sketch
 application.yaml
 build/
 .gradle/
+
+# Firebase 서비스 계정 키 등 로컬 비밀 파일 (절대 커밋 금지)
+secrets/
 # End of https://www.toptal.com/developers/gitignore/api/java,react,intellij,visualstudiocode

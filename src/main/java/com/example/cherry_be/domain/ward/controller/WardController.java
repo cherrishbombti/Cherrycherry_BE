@@ -55,6 +55,38 @@ public class WardController {
         return ResponseEntity.ok(wardService.getSensors(authentication.getName()));
     }
 
+    // ── 기관 연동 (#45) ─────────────────────────────
+
+    /**
+     * [GET] /api/wards/me/organization — 현재 기관 연동 상태
+     * 연동 전이면 { "linked": false } 만 내려간다.
+     */
+    @GetMapping("/me/organization")
+    public ResponseEntity<WardOrganizationResponse> getOrganization(Authentication authentication) {
+        return ResponseEntity.ok(wardService.getOrganization(authentication.getName()));
+    }
+
+    /**
+     * [PATCH] /api/wards/me/organization — 기관번호로 연동
+     * 이미 연동돼 있으면 새 기관으로 교체된다.
+     */
+    @PatchMapping("/me/organization")
+    public ResponseEntity<WardOrganizationResponse> linkOrganization(
+            Authentication authentication,
+            @Valid @RequestBody WardOrganizationRequest request) {
+        return ResponseEntity.ok(
+                wardService.linkOrganization(authentication.getName(), request));
+    }
+
+    /**
+     * [DELETE] /api/wards/me/organization — 기관 연동 해제
+     */
+    @DeleteMapping("/me/organization")
+    public ResponseEntity<Void> unlinkOrganization(Authentication authentication) {
+        wardService.unlinkOrganization(authentication.getName());
+        return ResponseEntity.noContent().build();
+    }
+
     /**
      * [GET] /api/wards/me/contacts — 비상연락망 목록 조회
      */

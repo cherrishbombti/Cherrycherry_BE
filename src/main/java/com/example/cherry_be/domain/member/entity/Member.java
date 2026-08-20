@@ -106,6 +106,32 @@ public class Member {
     }
 
     /**
+     * 보호자가 입력한 기관번호로 기관을 연결한다.
+     *
+     * 등록(소유)과 조회 권한은 별개다. 여기서 organization 이 채워져도
+     * user 는 그대로 남으므로, 이 피보호자의 소유자는 여전히 보호자다.
+     * 기관은 대시보드에서 조회만 할 수 있다 (isManageable 참고).
+     */
+    public void linkOrganization(Organization organization) {
+        this.organization = organization;
+    }
+
+    /** 기관 연동 해제. 보호자만 호출한다. */
+    public void unlinkOrganization() {
+        this.organization = null;
+    }
+
+    /**
+     * 기관이 이 피보호자를 관리(삭제·건강정보 수정)할 수 있는지 여부 (저장하지 않고 계산).
+     *
+     * 보호자가 등록한 피보호자는 보호자가 소유자이므로 기관은 조회만 가능하다.
+     * 기관이 직접 등록한 피보호자(무연고자)만 기관이 관리한다.
+     */
+    public boolean isManageable() {
+        return this.user == null;
+    }
+
+    /**
      * 디바이스 온라인 여부 (저장하지 않고 계산)
      * - deviceLastSeen이 null이면 false (한 번도 수신 없음 = 연결 대기 중)
      * - 최근 ONLINE_THRESHOLD_MINUTES 이내 수신이면 true

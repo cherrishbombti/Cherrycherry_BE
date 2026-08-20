@@ -20,6 +20,7 @@ public enum ErrorCode {
     // Organization
     ORG_NOT_FOUND(HttpStatus.NOT_FOUND, "O001", "존재하지 않는 기관입니다."),
     ORG_ID_DUPLICATE(HttpStatus.CONFLICT, "O002", "이미 사용 중인 기관 ID입니다."),
+    ORG_CODE_NOT_FOUND(HttpStatus.NOT_FOUND, "O003", "존재하지 않는 기관번호입니다."),
 
     // Auth
     LOGIN_FAILED(HttpStatus.UNAUTHORIZED, "A001", "아이디 또는 비밀번호가 일치하지 않습니다."),
