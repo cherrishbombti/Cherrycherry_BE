@@ -5,13 +5,13 @@ import com.example.cherry_be.domain.push.repository.DeviceTokenRepository;
 import com.google.firebase.messaging.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * FCM 푸시 발송.
@@ -29,9 +29,8 @@ public class FcmSender {
 
     private final DeviceTokenRepository deviceTokenRepository;
 
-    // 초기화 실패 시 null 이 주입될 수 있어 required = false
-    @Autowired(required = false)
-    private FirebaseMessaging firebaseMessaging;
+    // 초기화 실패 시 빈 Optional 이 주입된다 (FirebaseConfig 참고)
+    private final Optional<FirebaseMessaging> firebaseMessaging;
 
     /**
      * 여러 기기로 동시 발송.
@@ -40,7 +39,7 @@ public class FcmSender {
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void send(List<DeviceToken> targets, String title, String body, Map<String, String> data) {
-        if (firebaseMessaging == null) {
+        if (firebaseMessaging.isEmpty()) {
             log.debug("Firebase 미초기화 상태. 푸시를 건너뜁니다.");
             return;
         }
@@ -55,7 +54,7 @@ public class FcmSender {
 
     private void sendOne(DeviceToken target, String title, String body, Map<String, String> data) {
         try {
-            firebaseMessaging.send(Message.builder()
+            firebaseMessaging.get().send(Message.builder()
                     .setToken(target.getToken())
                     .setNotification(Notification.builder()
                             .setTitle(title)
