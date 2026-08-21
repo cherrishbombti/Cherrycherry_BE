@@ -180,3 +180,9 @@ application.yaml
 build/
 .gradle/
 # End of https://www.toptal.com/developers/gitignore/api/java,react,intellij,visualstudiocode
+
+### Secrets ###
+# Firebase 서비스 계정 키 등 자격증명. 절대 커밋 금지
+secrets/
+*firebase-adminsdk*.json
+*service-account*.json

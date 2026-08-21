@@ -20,6 +20,7 @@ import com.example.cherry_be.domain.ward.dto.*;
 import com.example.cherry_be.domain.ward.entity.EmergencyContact;
 import com.example.cherry_be.domain.ward.repository.EmergencyContactRepository;
 import com.example.cherry_be.global.exception.CustomException;
+import com.example.cherry_be.global.util.PhoneNumberUtils;
 import com.example.cherry_be.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -84,7 +85,7 @@ public class WardService {
                 .name(request.getName())
                 .age(age)
                 .address(request.getAddress())
-                .contact(request.getPhone())          // phone → contact 매핑
+                .contact(PhoneNumberUtils.normalize(request.getPhone()))  // 숫자만 남겨 저장
                 .relationship(request.getRelationship())
                 .deviceMac(request.getDeviceMac())
                 .build();
@@ -144,7 +145,7 @@ public class WardService {
         EmergencyContact contact = EmergencyContact.builder()
                 .member(ward)
                 .name(request.getName())
-                .phone(request.getPhone())
+                .phone(PhoneNumberUtils.normalize(request.getPhone()))
                 .relationship(request.getRelationship())
                 .priority(nextPriority)
                 .build();
@@ -167,7 +168,9 @@ public class WardService {
     public WardContactResponse updateContact(String oauthEmail, Long contactId, WardContactRequest request) {
         Member ward = getWard(getGuardian(oauthEmail));
         EmergencyContact contact = getOwnedContact(ward, contactId);
-        contact.update(request.getName(), request.getPhone(), request.getRelationship());
+        contact.update(request.getName(),
+                PhoneNumberUtils.normalize(request.getPhone()),
+                request.getRelationship());
         return WardContactResponse.from(contact);
     }
 
