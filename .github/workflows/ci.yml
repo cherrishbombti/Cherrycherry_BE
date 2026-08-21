@@ -1,3 +1,22 @@
+# ═══════════════════════════════════════════════════════════════════════
+# Cherrycherry_BE — CI 최종본
+#
+# 잡 구성 (4계층)
+#   1) 포맷 검사     빠른 게이트. Spotless
+#   2) 빌드 · 테스트  핵심 검증. 자격증명 검사 → 컴파일 → 테스트
+#   3) 스키마 검증   심화. 실제 DB 에 Flyway 돌리고 엔티티와 대조
+#   4) PR 크기 확인  조언. 실패시키지 않고 경고만
+#
+# 1·2·3 은 서로 독립이라 병렬로 돈다. 어느 게 빨간지로 원인이 바로 갈린다.
+#
+# ⚠️ 스키마 검증 잡은 아래가 저장소에 있어야 동작한다. 아직 없다:
+#      - Flyway 의존성 + src/main/resources/db/migration/V*.sql
+#      - build.gradle 의 schemaTest 태스크
+#      - src/test/resources/application-schema.yaml
+#    준비 전이라면 `schema:` 잡 전체를 주석 처리하고 나머지만 써도 된다.
+#    (준비물은 CodeReview/ci/README.md 참고)
+# ═══════════════════════════════════════════════════════════════════════
+
 name: CI
 
 on:
@@ -17,6 +36,39 @@ permissions:
   contents: read
 
 jobs:
+  # ─────────────────────────────────────────────────────────────
+  # 1) 포맷 검사
+  # ─────────────────────────────────────────────────────────────
+  format:
+    name: 포맷 검사
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 체크아웃
+        uses: actions/checkout@v7
+
+      - name: JDK 21 설치
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Gradle 설정
+        uses: gradle/actions/setup-gradle@v6
+
+      # spotless { enforceCheck = false } 라서 build 잡과 겹치지 않는다.
+      - name: Spotless 검사
+        run: ./gradlew spotlessCheck
+
+      - name: 실패 시 안내
+        if: failure()
+        run: |
+          echo "::error::포맷 규칙에 어긋난 파일이 있습니다."
+          echo "  로컬에서 ./gradlew spotlessApply 실행 후 커밋하세요."
+
+  # ─────────────────────────────────────────────────────────────
+  # 2) 빌드 · 테스트
+  # ─────────────────────────────────────────────────────────────
   build:
     name: 빌드 · 테스트
     runs-on: ubuntu-latest
@@ -26,11 +78,11 @@ jobs:
         uses: actions/checkout@v7
 
       # 자격증명이 저장소에 들어오는 것을 막는다.
-      # .env 뿐 아니라 로컬 설정 파일·인증서까지 함께 본다.
+      # .env 뿐 아니라 로컬 설정 파일·인증서·Firebase 키까지 함께 본다.
       - name: 자격증명 커밋 여부 확인
         run: |
           leaked=$(git ls-files | grep -E \
-            '(^|/)\.env$|(^|/)\.env\.(local|dev|prod)|application-(local|dev|prod|secret)\.ya?ml$|\.(pem|p12|jks|key)$' \
+            '(^|/)\.env$|(^|/)\.env\.(local|dev|prod)|application-(local|dev|prod|secret)\.ya?ml$|\.(pem|p12|jks|key)$|firebase-adminsdk|service-account.*\.json$' \
             || true)
           if [ -n "$leaked" ]; then
             echo "::error::자격증명으로 보이는 파일이 커밋돼 있습니다."
@@ -40,7 +92,7 @@ jobs:
           echo "자격증명 파일 미커밋 확인 완료"
 
       # gradle-wrapper.jar 가 .gitignore 의 *.jar 규칙에 걸려 빠졌던 사고가 있었다.
-      # 이 스텝은 wrapper 가 없거나 변조됐을 때 원인을 명확히 알려준다.
+      # 이 스텝은 wrapper 가 없을 때 원인을 명확히 알려준다.
       - name: Gradle Wrapper 존재 확인
         run: |
           if [ ! -f gradle/wrapper/gradle-wrapper.jar ]; then
@@ -63,9 +115,11 @@ jobs:
       - name: Gradle 설정
         uses: gradle/actions/setup-gradle@v6
 
-      # 테스트는 src/test/resources/application.yaml 의 H2 설정으로 돌아간다.
-      # 실제 DB·OAuth·JWT 자격증명 없이 통과해야 정상이다.
-      # (Application.main() 의 .env 로딩은 테스트에서 실행되지 않는다)
+      # ⚠️ 테스트는 src/test/resources/application.yaml 이 있어야 통과한다.
+      #    지금 ApplicationTests 는 @SpringBootTest 라 실제 컨텍스트를 띄우는데,
+      #    application.yaml 이 ${DB_URL} ${JWT_SECRET} 등을 요구한다.
+      #    CI 에는 .env 가 없으므로 플레이스홀더 해석에 실패해 컨텍스트가 죽는다.
+      #    CodeReview/ci/Cherrycherry_BE/src/test/resources/application.yaml 을 적용할 것.
       - name: 빌드 및 테스트
         run: ./gradlew build --stacktrace
 
@@ -79,9 +133,76 @@ jobs:
           if-no-files-found: ignore
 
   # ─────────────────────────────────────────────────────────────
-  # 선택 잡 — 실패시키지 않고 경고만 남긴다.
-  # 큰 PR 이 리뷰되지 못하고 revert 로 이어진 이력이 있어 추가했다.
-  # 불필요하면 이 잡만 지우면 된다.
+  # 3) 스키마 검증
+  #
+  # 엔티티만 고치고 마이그레이션을 빼먹으면 여기서 잡힌다.
+  # BE #43(priority NOT NULL 500)·BE #46(org_code 유니크)이 같은 사고였다.
+  #
+  # H2 로는 검증할 수 없어 실제 DB 컨테이너를 띄운다.
+  # ⚠️ 운영이 MariaDB 이므로 MariaDB 이미지를 쓴다.
+  #    컨벤션 문서에는 MySQL 8.4 로 적혀 있는데, 운영과 다른 엔진으로
+  #    검증하면 검증의 의미가 반감된다(타입·인덱스·예약어 처리가 다름).
+  #    MariaDB Connector/J ↔ MySQL 8 인증 플러그인 조합 문제도 피할 수 있다.
+  # ─────────────────────────────────────────────────────────────
+  schema:
+    name: 스키마 검증
+    runs-on: ubuntu-latest
+
+    services:
+      mariadb:
+        image: mariadb:11.4
+        env:
+          MARIADB_ROOT_PASSWORD: ci-root
+          MARIADB_DATABASE: cherry_ci
+          MARIADB_USER: cherry
+          MARIADB_PASSWORD: ci-pass
+        ports:
+          - 3306:3306
+        # 컨테이너가 실제로 질의를 받을 수 있을 때까지 기다린다.
+        # 이게 없으면 첫 커넥션이 간헐적으로 실패해 CI 가 불규칙하게 빨개진다.
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+
+    steps:
+      - name: 체크아웃
+        uses: actions/checkout@v7
+
+      - name: JDK 21 설치
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Gradle 설정
+        uses: gradle/actions/setup-gradle@v6
+
+      # 빈 DB 에 Flyway 를 돌린 뒤 ddl-auto: validate 로 엔티티와 대조한다.
+      # 마이그레이션이 누락됐거나 엔티티와 어긋나면 여기서 실패한다.
+      - name: 스키마 검증
+        run: ./gradlew schemaTest --stacktrace
+        env:
+          DB_URL: jdbc:mariadb://127.0.0.1:3306/cherry_ci
+          DB_USERNAME: cherry
+          DB_PASSWORD: ci-pass
+
+      - name: 실패 시 안내
+        if: failure()
+        run: |
+          echo "::error::엔티티와 마이그레이션이 어긋났습니다."
+          echo ""
+          echo "  엔티티만 바꾸고 V{번호}__{내용}.sql 을 안 만들었을 가능성이 높습니다."
+          echo "  로컬 재현:  docker compose up -d && ./gradlew schemaTest"
+          echo ""
+          echo "  마이그레이션 번호는 머지 직전에 확정합니다."
+          echo "  앞 번호가 이미 머지됐다면 rebase 하며 번호를 올리세요."
+
+  # ─────────────────────────────────────────────────────────────
+  # 4) PR 크기 확인 — 실패시키지 않고 경고만 남긴다.
+  #    큰 PR 이 리뷰되지 못하고 revert 로 이어진 이력이 있어 추가했다.
+  #    불필요하면 이 잡만 지우면 된다.
   # ─────────────────────────────────────────────────────────────
   pr-size:
     name: PR 크기 확인
