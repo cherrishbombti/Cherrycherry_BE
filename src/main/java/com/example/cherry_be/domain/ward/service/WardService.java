@@ -12,6 +12,8 @@ import com.example.cherry_be.domain.log.entity.Log;
 import com.example.cherry_be.domain.log.entity.LogType;
 import com.example.cherry_be.domain.log.repository.LogRepository;
 import com.example.cherry_be.domain.log.service.LogQueryService;
+import com.example.cherry_be.domain.health.entity.MemberHealth;
+import com.example.cherry_be.domain.health.repository.MemberHealthRepository;
 import com.example.cherry_be.domain.member.entity.Member;
 import com.example.cherry_be.domain.member.repository.MemberRepository;
 import com.example.cherry_be.domain.user.entity.User;
@@ -42,6 +44,7 @@ public class WardService {
     private final LogQueryService logQueryService;
     private final LogRepository logRepository;
     private final MemberHealthService memberHealthService;
+    private final MemberHealthRepository memberHealthRepository;
     private final NotificationService notificationService;
 
     private User getGuardian(String oauthEmail) {
@@ -72,6 +75,13 @@ public class WardService {
             }
         }
 
+        // 보호자 이름·연락처 저장 (연락처는 숫자만)
+        guardian.updateProfile(
+                request.getGuardianName(),
+                request.getGuardianPhone() == null
+                        ? null
+                        : PhoneNumberUtils.normalize(request.getGuardianPhone()));
+
         // birthDate(YYYY-MM-DD) → age 계산
         long age = 0;
         if (request.getBirthDate() != null && !request.getBirthDate().isBlank()) {
@@ -79,7 +89,7 @@ public class WardService {
             age = LocalDate.now().getYear() - birth.getYear();
         }
 
-        Member member = Member.builder()
+        Member member = memberRepository.save(Member.builder()
                 .user(guardian)
                 .organization(null)
                 .name(request.getName())
@@ -88,9 +98,22 @@ public class WardService {
                 .contact(PhoneNumberUtils.normalize(request.getPhone()))  // 숫자만 남겨 저장
                 .relationship(request.getRelationship())
                 .deviceMac(request.getDeviceMac())
-                .build();
+                .build());
 
-        return memberRepository.save(member).getId();
+        // 기저질환 있으면 member_health 생성
+        if (request.getDisease() != null && !request.getDisease().isBlank()) {
+            memberHealthRepository.save(MemberHealth.builder()
+                    .member(member)
+                    .disease(request.getDisease())
+                    .medication("")
+                    .memo("")
+                    .updatedByType(UpdatedByType.USER)
+                    .updatedById(guardian.getId())
+                    .updatedByName(guardian.getName())
+                    .build());
+        }
+
+        return member.getId();
     }
 
     /**

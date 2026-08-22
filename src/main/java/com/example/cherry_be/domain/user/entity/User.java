@@ -33,4 +33,11 @@ public class User {
     @Column(name = "cell_num")
     private String cellNum;
 
+    /** 회원가입 시 보호자 이름·연락처 갱신 */
+    public void updateProfile(String name, String cellNum) {
+        if (name != null && !name.isBlank()) this.name = name;
+        if (cellNum != null && !cellNum.isBlank()) this.cellNum = cellNum;
+    }
+
+
 }
