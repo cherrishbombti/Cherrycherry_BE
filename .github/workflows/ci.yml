@@ -1,13 +1,24 @@
-
 name: CI
+
+# 데모 전까지는 "빌드와 테스트가 통과하는가"만 본다.
+#
+# 이전 버전에는 포맷 검사(spotless)와 스키마 검증(Flyway) 잡이 있었으나,
+# 두 도구 모두 프로젝트에 도입돼 있지 않아 모든 PR 이 항상 실패하고 있었다.
+# 빨간불이 일상이 되면 진짜 실패를 아무도 읽지 않으므로 잡을 걷어냈다.
+# 도입 논의는 데모 이후 이슈에서 이어간다.
+#
+# 스키마 사고(BE #42 priority NOT NULL, #43, #46 org_code 유니크)는
+# 당분간 CI 가 아니라 리뷰에서 막는다.
+# 엔티티를 고친 PR 은 본문에 스키마 변경점을 적고, 리뷰어가 이를 확인한다.
 
 on:
   push:
-    branches: [ main, develop ]
-    paths-ignore: [ '**.md', 'docs/**', '.gitignore' ]
+    branches: [ main ]
   pull_request:
-    branches: [ main, develop ]
-    paths-ignore: [ '**.md', 'docs/**', '.gitignore' ]
+    branches: [ main ]
+  # paths-ignore 를 쓰지 않는다.
+  # 이 잡을 required status check 로 걸어두면, 문서만 고친 PR 은
+  # 체크가 아예 보고되지 않아 영원히 머지 대기 상태가 된다.
 
 # 같은 브랜치에 연속 push 하면 이전 실행을 취소한다.
 concurrency:
@@ -19,41 +30,12 @@ permissions:
 
 jobs:
   # ─────────────────────────────────────────────────────────────
-  # 1) 포맷 검사
-  # ─────────────────────────────────────────────────────────────
-  format:
-    name: 포맷 검사
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: 체크아웃
-        uses: actions/checkout@v7
-
-      - name: JDK 21 설치
-        uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: '21'
-
-      - name: Gradle 설정
-        uses: gradle/actions/setup-gradle@v6
-
-      # spotless { enforceCheck = false } 라서 build 잡과 겹치지 않는다.
-      - name: Spotless 검사
-        run: ./gradlew spotlessCheck
-
-      - name: 실패 시 안내
-        if: failure()
-        run: |
-          echo "::error::포맷 규칙에 어긋난 파일이 있습니다."
-          echo "  로컬에서 ./gradlew spotlessApply 실행 후 커밋하세요."
-
-  # ─────────────────────────────────────────────────────────────
-  # 2) 빌드 · 테스트
+  # 1) 빌드 · 테스트
   # ─────────────────────────────────────────────────────────────
   build:
     name: 빌드 · 테스트
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     steps:
       - name: 체크아웃
@@ -97,13 +79,19 @@ jobs:
       - name: Gradle 설정
         uses: gradle/actions/setup-gradle@v6
 
-      # ⚠️ 테스트는 src/test/resources/application.yaml 이 있어야 통과한다.
-      #    지금 ApplicationTests 는 @SpringBootTest 라 실제 컨텍스트를 띄우는데,
-      #    application.yaml 이 ${DB_URL} ${JWT_SECRET} 등을 요구한다.
-      #    CI 에는 .env 가 없으므로 플레이스홀더 해석에 실패해 컨텍스트가 죽는다.
-      #    CodeReview/ci/Cherrycherry_BE/src/test/resources/application.yaml 을 적용할 것.
+      # 테스트는 test 프로파일로 H2 를 쓴다. CI 에 .env 나 DB 가 없어도 통과한다.
+      # 설정: src/test/resources/application-test.yaml
       - name: 빌드 및 테스트
         run: ./gradlew build --stacktrace
+
+      - name: 실패 시 안내
+        if: failure()
+        run: |
+          echo "::error::빌드 또는 테스트가 실패했습니다."
+          echo "  로컬 재현:  ./gradlew build"
+          echo ""
+          echo "  컨텍스트 로딩에서 깨졌다면, 운영 설정에 새로 추가한 환경변수를"
+          echo "  src/test/resources/application-test.yaml 에도 더미값으로 넣었는지 확인하세요."
 
       - name: 테스트 리포트 업로드
         if: ${{ !cancelled() }}
@@ -115,74 +103,7 @@ jobs:
           if-no-files-found: ignore
 
   # ─────────────────────────────────────────────────────────────
-  # 3) 스키마 검증
-  #
-  # 엔티티만 고치고 마이그레이션을 빼먹으면 여기서 잡힌다.
-  # BE #43(priority NOT NULL 500)·BE #46(org_code 유니크)이 같은 사고였다.
-  #
-  # H2 로는 검증할 수 없어 실제 DB 컨테이너를 띄운다.
-  # ⚠️ 운영이 MariaDB 이므로 MariaDB 이미지를 쓴다.
-  #    컨벤션 문서에는 MySQL 8.4 로 적혀 있는데, 운영과 다른 엔진으로
-  #    검증하면 검증의 의미가 반감된다(타입·인덱스·예약어 처리가 다름).
-  #    MariaDB Connector/J ↔ MySQL 8 인증 플러그인 조합 문제도 피할 수 있다.
-  # ─────────────────────────────────────────────────────────────
-  schema:
-    name: 스키마 검증
-    runs-on: ubuntu-latest
-
-    services:
-      mariadb:
-        image: mariadb:11.4
-        env:
-          MARIADB_ROOT_PASSWORD: ci-root
-          MARIADB_DATABASE: cherry_ci
-          MARIADB_USER: cherry
-          MARIADB_PASSWORD: ci-pass
-        ports:
-          - 3306:3306
-        # 컨테이너가 실제로 질의를 받을 수 있을 때까지 기다린다.
-        # 이게 없으면 첫 커넥션이 간헐적으로 실패해 CI 가 불규칙하게 빨개진다.
-        options: >-
-          --health-cmd="healthcheck.sh --connect --innodb_initialized"
-          --health-interval=5s
-          --health-timeout=5s
-          --health-retries=20
-
-    steps:
-      - name: 체크아웃
-        uses: actions/checkout@v7
-
-      - name: JDK 21 설치
-        uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: '21'
-
-      - name: Gradle 설정
-        uses: gradle/actions/setup-gradle@v6
-
-      # 빈 DB 에 Flyway 를 돌린 뒤 ddl-auto: validate 로 엔티티와 대조한다.
-      # 마이그레이션이 누락됐거나 엔티티와 어긋나면 여기서 실패한다.
-      - name: 스키마 검증
-        run: ./gradlew schemaTest --stacktrace
-        env:
-          DB_URL: jdbc:mariadb://127.0.0.1:3306/cherry_ci
-          DB_USERNAME: cherry
-          DB_PASSWORD: ci-pass
-
-      - name: 실패 시 안내
-        if: failure()
-        run: |
-          echo "::error::엔티티와 마이그레이션이 어긋났습니다."
-          echo ""
-          echo "  엔티티만 바꾸고 V{번호}__{내용}.sql 을 안 만들었을 가능성이 높습니다."
-          echo "  로컬 재현:  docker compose up -d && ./gradlew schemaTest"
-          echo ""
-          echo "  마이그레이션 번호는 머지 직전에 확정합니다."
-          echo "  앞 번호가 이미 머지됐다면 rebase 하며 번호를 올리세요."
-
-  # ─────────────────────────────────────────────────────────────
-  # 4) PR 크기 확인 — 실패시키지 않고 경고만 남긴다.
+  # 2) PR 크기 확인 — 실패시키지 않고 경고만 남긴다.
   #    큰 PR 이 리뷰되지 못하고 revert 로 이어진 이력이 있어 추가했다.
   #    불필요하면 이 잡만 지우면 된다.
   # ─────────────────────────────────────────────────────────────
@@ -190,6 +111,7 @@ jobs:
     name: PR 크기 확인
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - name: 체크아웃
         uses: actions/checkout@v7
