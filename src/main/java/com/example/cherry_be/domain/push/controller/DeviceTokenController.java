@@ -1,5 +1,6 @@
 package com.example.cherry_be.domain.push.controller;
 
+import com.example.cherry_be.domain.push.dto.DeviceTokenDeleteRequest;
 import com.example.cherry_be.domain.push.dto.DeviceTokenRequest;
 import com.example.cherry_be.domain.push.service.DeviceTokenService;
 import jakarta.validation.Valid;
@@ -33,12 +34,16 @@ public class DeviceTokenController {
 
     /**
      * [DELETE] /api/push/token — 토큰 삭제 (로그아웃 시)
+     *
+     * 토큰은 쿼리스트링이 아니라 요청 본문으로 받는다.
+     * URL 은 액세스 로그·프록시에 평문으로 남는데, FCM 토큰은
+     * 특정 사용자의 기기를 지목하는 식별자라 로그에 남기면 안 된다.
      */
     @DeleteMapping("/token")
     public ResponseEntity<Void> delete(
             Authentication authentication,
-            @RequestParam String token) {
-        deviceTokenService.delete(authentication, token);
+            @Valid @RequestBody DeviceTokenDeleteRequest request) {
+        deviceTokenService.delete(authentication, request.getToken());
         return ResponseEntity.noContent().build();
     }
 }
