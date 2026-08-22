@@ -1,5 +1,6 @@
 package com.example.cherry_be.domain.notification.repository;
 
+import com.example.cherry_be.domain.member.entity.Member;
 import com.example.cherry_be.domain.notification.entity.Notification;
 import com.example.cherry_be.domain.organization.entity.Organization;
 import com.example.cherry_be.domain.user.entity.User;
@@ -51,4 +52,7 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("UPDATE Notification n SET n.isRead = true WHERE n.organization = :organization AND n.isRead = false")
     int markAllAsReadByOrganization(@Param("organization") Organization organization);
+
+    // 피보호자 삭제 시 함께 정리한다 (member_id NOT NULL FK — 남아있으면 삭제가 막힌다)
+    void deleteByMember(Member member);
 }

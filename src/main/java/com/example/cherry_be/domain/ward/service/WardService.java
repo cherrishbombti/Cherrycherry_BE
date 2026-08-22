@@ -14,6 +14,8 @@ import com.example.cherry_be.domain.log.repository.LogRepository;
 import com.example.cherry_be.domain.log.service.LogQueryService;
 import com.example.cherry_be.domain.member.entity.Member;
 import com.example.cherry_be.domain.member.repository.MemberRepository;
+import com.example.cherry_be.domain.organization.entity.Organization;
+import com.example.cherry_be.domain.organization.repository.OrganizationRepository;
 import com.example.cherry_be.domain.user.entity.User;
 import com.example.cherry_be.domain.user.repository.UserRepository;
 import com.example.cherry_be.domain.ward.dto.*;
@@ -38,11 +40,13 @@ public class WardService {
 
     private final UserRepository userRepository;
     private final MemberRepository memberRepository;
+    private final OrganizationRepository organizationRepository;
     private final EmergencyContactRepository emergencyContactRepository;
     private final LogQueryService logQueryService;
     private final LogRepository logRepository;
     private final MemberHealthService memberHealthService;
     private final NotificationService notificationService;
+    private final WardOrgCodeAttemptLimiter orgCodeAttemptLimiter;
 
     private User getGuardian(String oauthEmail) {
         return userRepository.findByOauthEmail(oauthEmail)
@@ -109,6 +113,58 @@ public class WardService {
     public WardSensorResponse getSensors(String oauthEmail) {
         Member ward = getWard(getGuardian(oauthEmail));
         return WardSensorResponse.from(ward);
+    }
+
+    // ── 기관 연동 (#45) ─────────────────────────────
+    //
+    // 보호자가 기관번호를 입력하면 피보호자에 기관을 연결한다.
+    // 소유자는 그대로 보호자이며, 기관은 대시보드에서 조회만 할 수 있다.
+
+    /**
+     * [GET] /api/wards/me/organization — 현재 연동 상태 조회
+     */
+    @Transactional(readOnly = true)
+    public WardOrganizationResponse getOrganization(String oauthEmail) {
+        Member ward = getWard(getGuardian(oauthEmail));
+        return ward.getOrganization() == null
+                ? WardOrganizationResponse.notLinked()
+                : WardOrganizationResponse.from(ward.getOrganization());
+    }
+
+    /**
+     * [PATCH] /api/wards/me/organization — 기관 연동
+     *
+     * 이미 다른 기관과 연동돼 있으면 새 기관으로 교체한다.
+     * 피보호자의 소유자는 보호자이므로 어느 기관에 보일지도 보호자가 정한다.
+     *
+     * 기관번호는 8자리 숫자뿐이라 무차별 대입 가능성이 있어(리뷰 지적),
+     * 계정 기준으로 시도 횟수를 제한한다.
+     */
+    @Transactional
+    public WardOrganizationResponse linkOrganization(String oauthEmail, WardOrganizationRequest request) {
+        User guardian = getGuardian(oauthEmail);
+        Member ward = getWard(guardian);
+
+        orgCodeAttemptLimiter.assertNotLocked(guardian.getId());
+
+        Organization organization = organizationRepository.findByOrgCode(request.getOrgCode())
+                .orElseThrow(() -> {
+                    orgCodeAttemptLimiter.recordFailure(guardian.getId());
+                    return new CustomException(ErrorCode.ORG_CODE_NOT_FOUND);
+                });
+
+        orgCodeAttemptLimiter.reset(guardian.getId());
+        ward.linkOrganization(organization);
+        return WardOrganizationResponse.from(organization);
+    }
+
+    /**
+     * [DELETE] /api/wards/me/organization — 기관 연동 해제
+     * 연동돼 있지 않아도 오류로 보지 않는다(멱등).
+     */
+    @Transactional
+    public void unlinkOrganization(String oauthEmail) {
+        getWard(getGuardian(oauthEmail)).unlinkOrganization();
     }
 
     /**
@@ -204,7 +260,7 @@ public class WardService {
 
         Log log = logRepository.save(Log.builder()
                 .member(ward)
-                .organization(ward.getOrganization()) // 보호자 등록 피보호자는 null
+                .organization(ward.getOrganization()) // 기관번호로 연동하지 않았다면 null
                 .status(ward.getStatus())             // 클릭 시점의 상태를 함께 기록
                 .logType(LogType.EMERGENCY_CALL)
                 .build());

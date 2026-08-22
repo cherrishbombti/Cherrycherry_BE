@@ -51,6 +51,11 @@ public class MemberSummaryResponse {
         private final Boolean deviceOnline;
         private final LocalDateTime deviceLastSeen;
 
+        // 기관이 삭제·수정할 수 있는지 (계산값)
+        // false = 보호자가 등록해 기관번호로 연동된 피보호자 → 조회만 가능
+        @JsonProperty("manageable")
+        private final boolean manageable;
+
         public MemberInfo(Member member) {
             this.id          = member.getId();
             this.name        = member.getName();
@@ -63,6 +68,7 @@ public class MemberSummaryResponse {
             this.thermal     = member.getThermal();
             this.deviceOnline   = member.isDeviceOnline();
             this.deviceLastSeen = member.getDeviceLastSeen();
+            this.manageable     = member.isManageable();
         }
     }
 }

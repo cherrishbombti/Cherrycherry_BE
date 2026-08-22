@@ -25,7 +25,10 @@ public class Organization {
     @Column(nullable = false) // 기관명
     private String name;
 
-    @Column(name = "org_code") // 기관번호 (임의 부여 예정이므로 nullable 허용)
+    // 기관번호 — 보호자가 앱에서 입력해 피보호자를 이 기관과 연동할 때 쓴다.
+    // 가입 시 자동 부여된다. 이 번호로 기관을 특정하므로 중복되면 안 된다.
+    // 자동 부여 전에 만들어진 계정이 있을 수 있어 nullable 은 유지한다.
+    @Column(name = "org_code", unique = true)
     private Long orgCode;
 
     @Builder
