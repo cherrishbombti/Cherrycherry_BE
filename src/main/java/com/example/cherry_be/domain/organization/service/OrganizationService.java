@@ -64,14 +64,17 @@ public class OrganizationService {
     private static final int ORG_CODE_MAX_ATTEMPTS = 10;
 
     /**
-     * 중복되지 않는 6자리 기관번호를 만든다.
+     * 중복되지 않는 8자리 기관번호를 만든다.
      *
      * 보호자는 이 번호 하나로 기관을 지정하므로 중복되면 엉뚱한 기관에 연동되거나
      * 조회 자체가 실패한다. 랜덤이라 언젠가는 겹칠 수 있어 확인 후 재시도한다.
+     *
+     * 6자리(90만 개)는 무차별 대입에 약하다는 리뷰 지적으로 8자리(9천만 개)로 늘렸다.
+     * 시도 횟수 제한(WardOrgCodeAttemptLimiter)과 함께 방어한다.
      */
     private Long generateUniqueOrgCode() {
         for (int attempt = 0; attempt < ORG_CODE_MAX_ATTEMPTS; attempt++) {
-            Long candidate = ThreadLocalRandom.current().nextLong(100000L, 1000000L);
+            Long candidate = ThreadLocalRandom.current().nextLong(10000000L, 100000000L);
             if (organizationRepository.findByOrgCode(candidate).isEmpty()) {
                 return candidate;
             }

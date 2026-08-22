@@ -45,6 +45,7 @@ public class WardService {
     private final LogRepository logRepository;
     private final MemberHealthService memberHealthService;
     private final NotificationService notificationService;
+    private final WardOrgCodeAttemptLimiter orgCodeAttemptLimiter;
 
     private User getGuardian(String oauthEmail) {
         return userRepository.findByOauthEmail(oauthEmail)
@@ -134,14 +135,24 @@ public class WardService {
      *
      * 이미 다른 기관과 연동돼 있으면 새 기관으로 교체한다.
      * 피보호자의 소유자는 보호자이므로 어느 기관에 보일지도 보호자가 정한다.
+     *
+     * 기관번호는 8자리 숫자뿐이라 무차별 대입 가능성이 있어(리뷰 지적),
+     * 계정 기준으로 시도 횟수를 제한한다.
      */
     @Transactional
     public WardOrganizationResponse linkOrganization(String oauthEmail, WardOrganizationRequest request) {
-        Member ward = getWard(getGuardian(oauthEmail));
+        User guardian = getGuardian(oauthEmail);
+        Member ward = getWard(guardian);
+
+        orgCodeAttemptLimiter.assertNotLocked(guardian.getId());
 
         Organization organization = organizationRepository.findByOrgCode(request.getOrgCode())
-                .orElseThrow(() -> new CustomException(ErrorCode.ORG_CODE_NOT_FOUND));
+                .orElseThrow(() -> {
+                    orgCodeAttemptLimiter.recordFailure(guardian.getId());
+                    return new CustomException(ErrorCode.ORG_CODE_NOT_FOUND);
+                });
 
+        orgCodeAttemptLimiter.reset(guardian.getId());
         ward.linkOrganization(organization);
         return WardOrganizationResponse.from(organization);
     }

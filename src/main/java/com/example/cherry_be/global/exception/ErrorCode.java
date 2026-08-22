@@ -22,6 +22,7 @@ public enum ErrorCode {
     ORG_ID_DUPLICATE(HttpStatus.CONFLICT, "O002", "이미 사용 중인 기관 ID입니다."),
     ORG_CODE_NOT_FOUND(HttpStatus.NOT_FOUND, "O003", "존재하지 않는 기관번호입니다."),
     ORG_CODE_GENERATION_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "O004", "기관번호 발급에 실패했습니다. 잠시 후 다시 시도해주세요."),
+    ORG_CODE_TOO_MANY_ATTEMPTS(HttpStatus.TOO_MANY_REQUESTS, "O005", "기관번호 입력을 너무 많이 틀렸습니다. 잠시 후 다시 시도해주세요."),
 
     // Auth
     LOGIN_FAILED(HttpStatus.UNAUTHORIZED, "A001", "아이디 또는 비밀번호가 일치하지 않습니다."),
