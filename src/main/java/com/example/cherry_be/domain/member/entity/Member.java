@@ -1,6 +1,5 @@
 package com.example.cherry_be.domain.member.entity;
 
-import com.example.cherry_be.domain.health.entity.MemberHealth;
 import com.example.cherry_be.domain.log.entity.Log;
 import com.example.cherry_be.domain.organization.entity.Organization;
 import com.example.cherry_be.domain.user.entity.User;
@@ -71,18 +70,19 @@ public class Member {
     // 피보호자가 사라지면 함께 사라져야 하는 것들. 남아있으면 FK 제약에 걸려
     // 피보호자 삭제 자체가 실패하므로 cascade 로 함께 정리한다.
     //
-    // notification 은 여기에 두지 않는다. 한 피보호자에 수천 건이 쌓일 수 있어
-    // 컬렉션으로 들고 있으면 전체가 메모리에 올라올 위험이 있다.
-    // (MemberService.deleteMember 에서 명시적으로 지운다)
+    // 여기에 두지 않고 MemberService.deleteMember 에서 직접 지우는 것들:
+    //  - notification : 한 피보호자에 수천 건이 쌓일 수 있어 컬렉션으로 들고 있으면
+    //                   전체가 메모리에 올라올 위험이 있다.
+    //  - member_health: @OneToOne 은 기본이 EAGER 라 Member 를 읽을 때마다 함께 읽힌다.
+    //                   건강정보는 암호화 컬럼이어서 읽을 때마다 복호화가 일어나는데,
+    //                   대시보드 목록처럼 건강정보를 쓰지 않는 조회에서도 전원분이 복호화된다.
+    //                   게다가 한 건이라도 복호화에 실패하면 목록 조회 전체가 실패한다.
 
     @OneToMany(mappedBy = "member", cascade = CascadeType.REMOVE, orphanRemoval = true)
     private List<Log> fallLogs = new ArrayList<>();
 
     @OneToMany(mappedBy = "member", cascade = CascadeType.REMOVE, orphanRemoval = true)
     private List<EmergencyContact> emergencyContacts = new ArrayList<>();
-
-    @OneToOne(mappedBy = "member", cascade = CascadeType.REMOVE, orphanRemoval = true)
-    private MemberHealth health;
 
     // 마지막으로 디바이스 신호를 받은 "서버 수신 시각" (온라인 판정용)
     // 등록 시점에는 null - 한 번도 신호를 받지 않은 상태와 오프라인을 구분하기 위함

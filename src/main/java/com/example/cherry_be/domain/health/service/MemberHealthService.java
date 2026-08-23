@@ -7,9 +7,12 @@ import com.example.cherry_be.domain.health.entity.MemberHealth;
 import com.example.cherry_be.domain.health.entity.UpdatedByType;
 import com.example.cherry_be.domain.health.repository.MemberHealthRepository;
 import com.example.cherry_be.domain.member.entity.Member;
+import com.example.cherry_be.global.exception.CustomException;
+import com.example.cherry_be.global.exception.ErrorCode;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
  * 건강정보 공통 로직.
  * 수정 주체(보호자/기관)를 호출부에서 넘겨받아 감사 정보로 기록한다.
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class MemberHealthService {
@@ -34,12 +38,47 @@ public class MemberHealthService {
 
     /**
      * 조회 — 아직 등록 전이면 빈 응답을 반환한다(404 아님).
+     *
+     * 복호화에 실패하면 화면 전체를 실패시키는 대신 readable=false 로 내려보낸다.
+     * 500 을 던지면 건강정보 화면이 통째로 죽는데, 값을 못 읽는 것은
+     * 서버 버그가 아니라 데이터 상태 문제라 사용자에게 상황을 알리는 편이 낫다.
      */
     @Transactional(readOnly = true)
     public HealthResponse get(Member member) {
-        return memberHealthRepository.findByMember(member)
-                .map(HealthResponse::from)
-                .orElseGet(HealthResponse::empty);
+        try {
+            return memberHealthRepository.findByMember(member)
+                    .map(HealthResponse::from)
+                    .orElseGet(HealthResponse::empty);
+
+        } catch (Exception e) {
+            if (!CustomException.has(e, ErrorCode.DECRYPTION_FAILED)) {
+                throw e;
+            }
+            log.error("건강정보 복호화 실패로 읽을 수 없음 - memberId: {}", member.getId());
+            return HealthResponse.unreadable();
+        }
+    }
+
+    /**
+     * 기존 행을 읽어온다. 복호화에 실패하면 그 행을 지우고 없는 것으로 취급한다.
+     *
+     * 읽지 못하는 값은 이미 복구할 수 없으므로 덮어써도 잃을 것이 없다.
+     * 이 처리가 없으면 읽기도 쓰기도 막혀 API 로는 되돌릴 방법이 사라진다.
+     */
+    private MemberHealth findExistingOrDiscardBroken(Member member) {
+        try {
+            return memberHealthRepository.findByMember(member).orElse(null);
+
+        } catch (Exception e) {
+            if (!CustomException.has(e, ErrorCode.DECRYPTION_FAILED)) {
+                throw e;
+            }
+            // 파생 삭제는 대상을 엔티티로 읽어와 같은 실패를 반복하므로 벌크 삭제를 쓴다.
+            int removed = memberHealthRepository.deleteByMemberInBulk(member);
+            log.warn("복호화 불가 건강정보를 제거하고 새로 저장한다 - memberId: {}, 제거: {}행",
+                    member.getId(), removed);
+            return null;
+        }
     }
 
     /**
@@ -47,7 +86,7 @@ public class MemberHealthService {
      */
     @Transactional
     public HealthResponse put(Member member, HealthPutRequest request, Actor actor) {
-        MemberHealth health = memberHealthRepository.findByMember(member).orElse(null);
+        MemberHealth health = findExistingOrDiscardBroken(member);
 
         if (health == null) {
             health = memberHealthRepository.save(MemberHealth.builder()
@@ -71,7 +110,7 @@ public class MemberHealthService {
      */
     @Transactional
     public HealthResponse patch(Member member, HealthPatchRequest request, Actor actor) {
-        MemberHealth health = memberHealthRepository.findByMember(member).orElse(null);
+        MemberHealth health = findExistingOrDiscardBroken(member);
 
         if (health == null) {
             // 최초 등록: 전달된 필드만 채우고 나머지는 null로 둔다
@@ -89,5 +128,16 @@ public class MemberHealthService {
         health.patch(request.getDisease(), request.getMedication(), request.getMemo(),
                 actor.getType(), actor.getId(), actor.getName());
         return HealthResponse.from(health);
+    }
+
+    /**
+     * 피보호자 삭제 시 함께 정리한다.
+     *
+     * Member 에 연관관계를 두지 않아(EAGER 복호화 회피) cascade 가 걸리지 않으므로 직접 지운다.
+     * 벌크 삭제라 복호화에 실패하는 행도 지울 수 있다.
+     */
+    @Transactional
+    public void deleteByMember(Member member) {
+        memberHealthRepository.deleteByMemberInBulk(member);
     }
 }
