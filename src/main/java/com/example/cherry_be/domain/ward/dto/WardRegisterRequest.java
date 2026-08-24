@@ -26,8 +26,15 @@ public class WardRegisterRequest {
 
     @NotBlank(message = "디바이스 MAC 주소는 필수입니다.")
     @Pattern(
-        regexp = "^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$",
-        message = "MAC 주소 형식이 올바르지 않습니다. (예: AA:BB:CC:DD:EE:FF)"
+            regexp = "^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$",
+            message = "MAC 주소 형식이 올바르지 않습니다. (예: AA:BB:CC:DD:EE:FF)"
     )
     private String deviceMac;
+
+    // 보호자 정보 (STEP1)
+    private String guardianName;
+    private String guardianPhone;
+
+    // 피보호자 기저질환 (선택)
+    private String disease;
 }
