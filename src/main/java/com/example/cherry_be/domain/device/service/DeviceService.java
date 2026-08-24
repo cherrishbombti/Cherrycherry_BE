@@ -30,69 +30,100 @@ public class DeviceService {
         Member member = memberRepository.findByDeviceMac(request.getDeviceId())
                 .orElseThrow(() -> new CustomException(ErrorCode.DEVICE_NOT_REGISTERED));
 
-        // 2. 문자열 event_type → MemberStatus enum 변환 (잘못된 값이면 400)
-        MemberStatus newStatus;
+        // EVENT = 사건 보고(로그 적재), HEARTBEAT = 주기 보고(상태 갱신만)
+        boolean isEvent = "EVENT".equalsIgnoreCase(request.getReportType());
+
+        // 2. 상태 결정: event_type 있으면 파싱, 없으면(HEARTBEAT) 현재 상태 유지
+        MemberStatus newStatus = resolveStatus(request, member, isEvent);
+
+        // 3. 센서 상태 OK/FAIL/UNKNOWN → Boolean(true/false/null)
+        DeviceDataRequest.SensorHealth sh = request.getSensorHealth();
+        Boolean vibrator = toBool(sh == null ? null : sh.getVibrator());
+        Boolean radar = toBool(sh == null ? null : sh.getRadar());
+        Boolean thermal = toBool(sh == null ? null : sh.getThermal());
+
+        // 4. EVENT일 때만 로그·알림 적재 (HEARTBEAT은 상태 갱신만 → DB 행 안 쌓임)
+        if (isEvent) {
+            MemberStatus previousStatus = member.getStatus();
+            if (previousStatus != newStatus) {
+                Log fallLog = logRepository.save(Log.builder()
+                        .member(member)
+                        .organization(member.getOrganization())
+                        .status(newStatus)
+                        .logType(LogType.FALL_EVENT)
+                        .build());
+
+                // 상태가 나빠질 때만 알린다. (회복은 알리지 않음)
+                if (newStatus.isMoreSevereThan(previousStatus)) {
+                    notificationService.create(member, fallLog, toNotificationType(newStatus));
+                }
+            }
+            saveSensorFailureLogs(member, newStatus, vibrator, radar, thermal);
+        }
+
+        // 5. 배터리·신호 (device 블록 없으면 null → 기존 값 유지)
+        Integer batteryPct = request.getDevice() == null ? null : request.getDevice().getBatteryPct();
+        Integer rssi = request.getDevice() == null ? null : request.getDevice().getRssi();
+
+        // 6. member_info 최신 상태 업데이트 (항상 실행)
+        member.updateFromDevice(newStatus, vibrator, radar, thermal, batteryPct, rssi);
+    }
+
+    /**
+     * event_type 이 있으면 파싱(잘못된 값 400), 없으면 현재 상태 유지.
+     * EVENT 인데 event_type 이 없으면 계약 위반이므로 400.
+     */
+    private MemberStatus resolveStatus(DeviceDataRequest request, Member member, boolean isEvent) {
+        String eventType = request.getEventType();
+        if (eventType == null || eventType.isBlank()) {
+            if (isEvent) {
+                throw new CustomException(ErrorCode.INVALID_EVENT_TYPE);
+            }
+            return member.getStatus();
+        }
         try {
-            newStatus = MemberStatus.valueOf(request.getEventType());
-        } catch (IllegalArgumentException | NullPointerException e) {
+            return MemberStatus.valueOf(eventType);
+        } catch (IllegalArgumentException e) {
             throw new CustomException(ErrorCode.INVALID_EVENT_TYPE);
         }
+    }
 
-        DeviceDataRequest.SensorStatus sensorStatus = request.getSensorStatus();
-        Boolean vibrator = sensorStatus.getVibrator();
-        Boolean radar = sensorStatus.getRadar();
-        Boolean thermal = sensorStatus.getThermalImaging();
-
-        // 3. 상태가 변경됐으면 FALL_EVENT 로그 저장 + 수신자에게 알림 생성
-        MemberStatus previousStatus = member.getStatus();
-        if (previousStatus != newStatus) {
-            Log fallLog = logRepository.save(Log.builder()
-                    .member(member)
-                    .organization(member.getOrganization())
-                    .status(newStatus)
-                    .logType(LogType.FALL_EVENT)
-                    .build());
-
-            // 상태가 나빠질 때만 알린다.
-            // 회복(DANGER -> WARNING, -> SAFE)은 알릴 필요가 없고,
-            // 특히 DANGER -> WARNING 을 알리면 위험이 낮아졌는데도 주의 알림이 가서 혼란을 준다.
-            // 이력(fall_log)에는 모든 변화가 남으므로 회복 기록이 유실되지는 않는다.
-            if (newStatus.isMoreSevereThan(previousStatus)) {
-                notificationService.create(member, fallLog, toNotificationType(newStatus));
-            }
+    /**
+     * 센서 상태 문자열 → Boolean.
+     * OK → true(정상), FAIL → false(고장), UNKNOWN/null → null(판단 불가).
+     * 기존 Member 의 Boolean 3-state(null=미수신) 의미와 그대로 맞물린다.
+     */
+    private Boolean toBool(String health) {
+        if ("OK".equalsIgnoreCase(health)) {
+            return true;
         }
+        if ("FAIL".equalsIgnoreCase(health)) {
+            return false;
+        }
+        return null;
+    }
 
-        // 4. 센서 장애 감지 시 SENSOR_FAILURE 로그 저장
+    private void saveSensorFailureLogs(Member member, MemberStatus status,
+                                       Boolean vibrator, Boolean radar, Boolean thermal) {
         if (Boolean.FALSE.equals(vibrator)) {
-            logRepository.save(Log.builder()
-                    .member(member)
-                    .organization(member.getOrganization())
-                    .status(newStatus)
-                    .logType(LogType.SENSOR_FAILURE)
-                    .sensorDetail("vibrator")
-                    .build());
+            saveSensorFailure(member, status, "vibrator");
         }
         if (Boolean.FALSE.equals(radar)) {
-            logRepository.save(Log.builder()
-                    .member(member)
-                    .organization(member.getOrganization())
-                    .status(newStatus)
-                    .logType(LogType.SENSOR_FAILURE)
-                    .sensorDetail("radar")
-                    .build());
+            saveSensorFailure(member, status, "radar");
         }
         if (Boolean.FALSE.equals(thermal)) {
-            logRepository.save(Log.builder()
-                    .member(member)
-                    .organization(member.getOrganization())
-                    .status(newStatus)
-                    .logType(LogType.SENSOR_FAILURE)
-                    .sensorDetail("thermal")
-                    .build());
+            saveSensorFailure(member, status, "thermal");
         }
+    }
 
-        // 5. member_info 최신 상태 업데이트 (항상 실행)
-        member.updateFromDevice(newStatus, vibrator, radar, thermal);
+    private void saveSensorFailure(Member member, MemberStatus status, String sensor) {
+        logRepository.save(Log.builder()
+                .member(member)
+                .organization(member.getOrganization())
+                .status(status)
+                .logType(LogType.SENSOR_FAILURE)
+                .sensorDetail(sensor)
+                .build());
     }
 
     /**
