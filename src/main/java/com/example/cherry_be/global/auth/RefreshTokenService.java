@@ -1,7 +1,9 @@
 package com.example.cherry_be.global.auth;
 
 import com.example.cherry_be.domain.organization.entity.Organization;
+import com.example.cherry_be.domain.organization.repository.OrganizationRepository;
 import com.example.cherry_be.domain.user.entity.User;
+import com.example.cherry_be.domain.user.repository.UserRepository;
 import com.example.cherry_be.global.exception.CustomException;
 import com.example.cherry_be.global.exception.ErrorCode;
 import java.nio.charset.StandardCharsets;
@@ -15,6 +17,7 @@ import java.util.Base64;
 import java.util.function.Function;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,6 +39,8 @@ public class RefreshTokenService {
     private static final String ROLE_ADMIN = "ROLE_ADMIN";
 
     private final RefreshTokenRepository refreshTokenRepository;
+    private final UserRepository userRepository;
+    private final OrganizationRepository organizationRepository;
     private final JwtUtil jwtUtil;
     private final SecureRandom secureRandom = new SecureRandom();
 
@@ -83,14 +88,36 @@ public class RefreshTokenService {
         return jwtUtil.createToken(refreshToken.getOrganization().getOrgId(), ROLE_ADMIN);
     }
 
+    /**
+     * 인증 주체의 모든 리프레시 토큰을 폐기한다(로그아웃).
+     *
+     * 회전을 쓰지 않아 요청자가 들고 있던 토큰 하나만 집어낼 수 없으므로 전부 폐기한다.
+     * 보호자·기관 중 어느 쪽인지는 권한으로 가른다 — DeviceTokenService 와 동일한 방식.
+     */
     @Transactional
-    public void revokeAll(User user) {
-        refreshTokenRepository.revokeAllByUser(user);
+    public void revokeAll(Authentication authentication) {
+        String loginId = authentication.getName();
+
+        if (hasAdminRole(authentication)) {
+            refreshTokenRepository.revokeAllByOrganization(findOrganization(loginId));
+            return;
+        }
+        refreshTokenRepository.revokeAllByUser(findUser(loginId));
     }
 
-    @Transactional
-    public void revokeAll(Organization organization) {
-        refreshTokenRepository.revokeAllByOrganization(organization);
+    private boolean hasAdminRole(Authentication authentication) {
+        return authentication.getAuthorities().stream()
+                .anyMatch(a -> ROLE_ADMIN.equals(a.getAuthority()));
+    }
+
+    private User findUser(String oauthEmail) {
+        return userRepository.findByOauthEmail(oauthEmail)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+    }
+
+    private Organization findOrganization(String orgId) {
+        return organizationRepository.findByOrgId(orgId)
+                .orElseThrow(() -> new CustomException(ErrorCode.ORG_NOT_FOUND));
     }
 
     private LocalDateTime expiresAt() {

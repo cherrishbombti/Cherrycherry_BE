@@ -8,7 +8,9 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.example.cherry_be.domain.organization.entity.Organization;
+import com.example.cherry_be.domain.organization.repository.OrganizationRepository;
 import com.example.cherry_be.domain.user.entity.User;
+import com.example.cherry_be.domain.user.repository.UserRepository;
 import com.example.cherry_be.domain.user.helper.constants.SocialLoginType;
 import com.example.cherry_be.global.exception.CustomException;
 import com.example.cherry_be.global.exception.ErrorCode;
@@ -24,6 +26,9 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
@@ -31,6 +36,12 @@ class RefreshTokenServiceTest {
 
     @Mock
     private RefreshTokenRepository refreshTokenRepository;
+
+    @Mock
+    private UserRepository userRepository;
+
+    @Mock
+    private OrganizationRepository organizationRepository;
 
     @Mock
     private JwtUtil jwtUtil;
@@ -46,7 +57,7 @@ class RefreshTokenServiceTest {
 
     @BeforeEach
     void setUp() {
-        refreshTokenService = new RefreshTokenService(refreshTokenRepository, jwtUtil);
+        refreshTokenService = new RefreshTokenService(refreshTokenRepository, userRepository, organizationRepository, jwtUtil);
         ReflectionTestUtils.setField(refreshTokenService, "refreshExpirationTimeMillis", 1_209_600_000L);
     }
 
@@ -106,7 +117,9 @@ class RefreshTokenServiceTest {
 
     @Test
     void 로그아웃시_보호자의_모든_토큰을_폐기한다() {
-        refreshTokenService.revokeAll(user);
+        when(userRepository.findByOauthEmail("ward@example.com")).thenReturn(Optional.of(user));
+
+        refreshTokenService.revokeAll(authentication("ward@example.com", "ROLE_USER"));
 
         verify(refreshTokenRepository).revokeAllByUser(user);
     }
@@ -118,10 +131,25 @@ class RefreshTokenServiceTest {
                 .password("encoded")
                 .name("기관")
                 .build();
+        when(organizationRepository.findByOrgId("org-1")).thenReturn(Optional.of(organization));
 
-        refreshTokenService.revokeAll(organization);
+        refreshTokenService.revokeAll(authentication("org-1", "ROLE_ADMIN"));
 
         verify(refreshTokenRepository).revokeAllByOrganization(organization);
+    }
+
+    @Test
+    void 로그아웃시_존재하지_않는_계정이면_예외를_던진다() {
+        when(userRepository.findByOauthEmail("gone@example.com")).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() ->
+                refreshTokenService.revokeAll(authentication("gone@example.com", "ROLE_USER")))
+                .isInstanceOf(CustomException.class);
+    }
+
+    private Authentication authentication(String loginId, String role) {
+        return new UsernamePasswordAuthenticationToken(
+                loginId, null, java.util.List.of(new SimpleGrantedAuthority(role)));
     }
 
     private RefreshToken tokenFor(String rawToken, LocalDateTime expiresAt) {

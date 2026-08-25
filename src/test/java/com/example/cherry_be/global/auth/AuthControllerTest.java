@@ -7,8 +7,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.example.cherry_be.domain.organization.repository.OrganizationRepository;
-import com.example.cherry_be.domain.user.repository.UserRepository;
 import com.example.cherry_be.global.exception.CustomException;
 import com.example.cherry_be.global.exception.ErrorCode;
 import java.util.Map;
@@ -27,19 +25,12 @@ class AuthControllerTest {
     @Mock
     private RefreshTokenService refreshTokenService;
 
-    @Mock
-    private UserRepository userRepository;
-
-    @Mock
-    private OrganizationRepository organizationRepository;
-
     private AuthController authController;
 
     @BeforeEach
     void setUp() {
         RefreshCookie refreshCookie = new RefreshCookie(true, 1_209_600_000L);
-        authController = new AuthController(
-                refreshTokenService, refreshCookie, userRepository, organizationRepository);
+        authController = new AuthController(refreshTokenService, refreshCookie);
     }
 
     @Test
