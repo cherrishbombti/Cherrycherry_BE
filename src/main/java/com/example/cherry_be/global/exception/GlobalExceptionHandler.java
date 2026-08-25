@@ -153,6 +153,15 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     protected ResponseEntity<ErrorResponse> handleAllException(Exception e) {
+        // 프레임워크가 CustomException 을 감싸 던지는 경로가 있다.
+        // (예: AttributeConverter 에서 던진 예외를 Hibernate 가 자체 예외로 포장)
+        // 원인 사슬에 CustomException 이 있으면 그 코드를 그대로 쓴다.
+        CustomException wrapped = CustomException.unwrap(e);
+        if (wrapped != null) {
+            log.error("Wrapped CustomException : {}", wrapped.getErrorCode().getMessage(), e);
+            return ErrorResponse.toResponseEntity(wrapped.getErrorCode());
+        }
+
         log.error("Unhandled Exception : {}", e.getMessage(), e);
         return ErrorResponse.toResponseEntity(ErrorCode.INTERNAL_SERVER_ERROR);
     }

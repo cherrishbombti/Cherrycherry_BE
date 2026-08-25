@@ -114,8 +114,9 @@ public class MemberService {
      *
      * 보호자가 등록한 피보호자는 기관이 삭제할 수 없다.
      *
-     * fall_log·member_health·emergency_contact 는 Member 의 cascade 로 함께 지워진다.
-     * notification 만 Member 에 컬렉션을 두지 않아(건수가 많을 수 있음) 직접 지운다.
+     * fall_log·emergency_contact 는 Member 의 cascade 로 함께 지워진다.
+     * notification(건수가 많을 수 있음)과 member_health(암호화 컬럼이라 EAGER 로딩을
+     * 피하려고 연관을 두지 않음)는 여기서 직접 지운다.
      * 남겨두면 member_id NOT NULL FK 에 걸려 삭제 자체가 409 로 실패한다.
      */
     @Transactional
@@ -123,6 +124,7 @@ public class MemberService {
         Member member = findManagedMember(findOrganization(orgId), targetId, orgId);
 
         notificationService.deleteByMember(member);
+        memberHealthService.deleteByMember(member);
         memberRepository.delete(member);
     }
 
@@ -168,6 +170,18 @@ public class MemberService {
         Organization organization = findOrganization(orgId);
         Member member = findManagedMember(organization, targetId, orgId);
         return memberHealthService.patch(member, request, toActor(organization));
+    }
+
+    /**
+     * [DELETE] /api/targets/{targetId}/health — 건강정보 삭제
+     *
+     * 수정과 같은 권한을 요구한다(보호자 소유 피보호자는 기관이 삭제할 수 없다).
+     * 값을 읽지 못하게 된 건강정보를 되돌리는 경로이기도 하다.
+     */
+    @Transactional
+    public void deleteHealth(String orgId, Long targetId) {
+        Member member = findManagedMember(findOrganization(orgId), targetId, orgId);
+        memberHealthService.deleteByMember(member);
     }
 
     private MemberHealthService.Actor toActor(Organization organization) {

@@ -321,6 +321,15 @@ public class WardService {
         return memberHealthService.patch(getWard(guardian), request, toActor(guardian));
     }
 
+    /**
+     * [DELETE] /api/wards/me/health — 건강정보 삭제
+     * 값을 읽지 못하게 된 건강정보를 되돌리는 경로이기도 하다.
+     */
+    @Transactional
+    public void deleteHealth(String oauthEmail) {
+        memberHealthService.deleteByMember(getWard(getGuardian(oauthEmail)));
+    }
+
     private MemberHealthService.Actor toActor(User guardian) {
         return MemberHealthService.Actor.builder()
                 .type(UpdatedByType.USER)

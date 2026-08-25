@@ -144,4 +144,16 @@ public class MemberController {
         return ResponseEntity.ok(
                 memberService.patchHealth(authentication.getName(), targetId, request));
     }
+
+    /**
+     * [DELETE] /api/targets/{targetId}/health — 건강정보 삭제
+     * 수정과 같은 권한이 필요하다. 저장값을 읽지 못하게 된 경우의 복구 경로이기도 하다.
+     */
+    @DeleteMapping("/{targetId}/health")
+    public ResponseEntity<Void> deleteTargetHealth(
+            Authentication authentication,
+            @PathVariable Long targetId) {
+        memberService.deleteHealth(authentication.getName(), targetId);
+        return ResponseEntity.noContent().build();
+    }
 }
