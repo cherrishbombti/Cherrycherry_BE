@@ -35,6 +35,11 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class RefreshTokenService {
 
+    private static final ZoneId KST = ZoneId.of("Asia/Seoul");
+
+    /** 만료·폐기된 토큰을 삭제하기 전 남겨두는 기간. 문제 추적 근거로 쓴다. */
+    private static final int DEAD_TOKEN_RETENTION_DAYS = 7;
+
     private static final String ROLE_USER = "ROLE_USER";
     private static final String ROLE_ADMIN = "ROLE_ADMIN";
 
@@ -78,7 +83,7 @@ public class RefreshTokenService {
     @Transactional
     public String reissueAccessToken(String rawRefreshToken) {
         RefreshToken refreshToken = refreshTokenRepository.findByTokenHash(hash(rawRefreshToken))
-                .filter(RefreshToken::isUsable)
+                .filter(token -> token.isUsable(now()))
                 .orElseThrow(() -> new CustomException(ErrorCode.REFRESH_TOKEN_INVALID));
 
         User user = refreshToken.getUser();
@@ -99,10 +104,24 @@ public class RefreshTokenService {
         String loginId = authentication.getName();
 
         if (hasAdminRole(authentication)) {
-            refreshTokenRepository.revokeAllByOrganization(findOrganization(loginId));
+            refreshTokenRepository.revokeAllByOrganization(findOrganization(loginId), now());
             return;
         }
-        refreshTokenRepository.revokeAllByUser(findUser(loginId));
+        refreshTokenRepository.revokeAllByUser(findUser(loginId), now());
+    }
+
+    /**
+     * 만료·폐기된 지 보관 기간이 지난 토큰을 삭제한다(#52).
+     *
+     * 로그인할 때마다 행이 쌓이고 만료돼도 사라지지 않아, 정리하지 않으면 계속 증가한다.
+     * 스케줄러가 하루 한 번 호출한다 — RefreshTokenCleanupScheduler 참고.
+     *
+     * @return 삭제된 행 수
+     */
+    @Transactional
+    public int cleanUpDeadTokens() {
+        LocalDateTime cutoff = now().minusDays(DEAD_TOKEN_RETENTION_DAYS);
+        return refreshTokenRepository.deleteDeadTokensBefore(cutoff);
     }
 
     private boolean hasAdminRole(Authentication authentication) {
@@ -120,9 +139,18 @@ public class RefreshTokenService {
                 .orElseThrow(() -> new CustomException(ErrorCode.ORG_NOT_FOUND));
     }
 
+    /**
+     * 이 서비스가 다루는 모든 시각의 단일 출처.
+     *
+     * JVM 기본 타임존에 기대지 않고 KST 를 명시한다 — Application 이 기동 시
+     * TimeZone.setDefault 로 KST 를 잡아 두지만, 그 설정이 사라져도 값이 어긋나지 않게 한다.
+     */
+    private LocalDateTime now() {
+        return LocalDateTime.now(KST);
+    }
+
     private LocalDateTime expiresAt() {
-        return LocalDateTime.now(ZoneId.of("Asia/Seoul"))
-                .plus(Duration.ofMillis(refreshExpirationTimeMillis));
+        return now().plus(Duration.ofMillis(refreshExpirationTimeMillis));
     }
 
     private String generateRawToken() {

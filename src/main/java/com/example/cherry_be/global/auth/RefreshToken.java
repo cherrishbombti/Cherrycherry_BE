@@ -71,11 +71,18 @@ public class RefreshToken extends BaseTimeEntity {
         }
     }
 
-    public boolean isUsable() {
-        return revokedAt == null && expiresAt.isAfter(LocalDateTime.now());
+    /**
+     * 사용 가능 여부. 기준 시각을 인자로 받는다.
+     *
+     * 엔티티가 스스로 LocalDateTime.now() 를 부르면 JVM 기본 타임존에 의존하게 되어,
+     * 만료 시각을 KST 로 계산하는 RefreshTokenService 와 기준이 갈릴 수 있다.
+     * 시각의 출처를 서비스 한 곳으로 모으기 위해 밖에서 받는다.
+     */
+    public boolean isUsable(LocalDateTime now) {
+        return revokedAt == null && expiresAt.isAfter(now);
     }
 
-    public void revoke() {
-        this.revokedAt = LocalDateTime.now();
+    public void revoke(LocalDateTime now) {
+        this.revokedAt = now;
     }
 }

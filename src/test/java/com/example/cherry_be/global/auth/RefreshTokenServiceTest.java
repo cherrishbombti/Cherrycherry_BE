@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -100,7 +101,7 @@ class RefreshTokenServiceTest {
     @Test
     void 폐기된_토큰이면_예외를_던진다() {
         RefreshToken revoked = tokenFor("raw-token", LocalDateTime.now().plusDays(1));
-        revoked.revoke();
+        revoked.revoke(LocalDateTime.now());
         when(refreshTokenRepository.findByTokenHash(anyString())).thenReturn(Optional.of(revoked));
 
         assertThatThrownBy(() -> refreshTokenService.reissueAccessToken("raw-token"))
@@ -121,7 +122,7 @@ class RefreshTokenServiceTest {
 
         refreshTokenService.revokeAll(authentication("ward@example.com", "ROLE_USER"));
 
-        verify(refreshTokenRepository).revokeAllByUser(user);
+        verify(refreshTokenRepository).revokeAllByUser(eq(user), any(LocalDateTime.class));
     }
 
     @Test
@@ -135,7 +136,7 @@ class RefreshTokenServiceTest {
 
         refreshTokenService.revokeAll(authentication("org-1", "ROLE_ADMIN"));
 
-        verify(refreshTokenRepository).revokeAllByOrganization(organization);
+        verify(refreshTokenRepository).revokeAllByOrganization(eq(organization), any(LocalDateTime.class));
     }
 
     @Test
@@ -145,6 +146,18 @@ class RefreshTokenServiceTest {
         assertThatThrownBy(() ->
                 refreshTokenService.revokeAll(authentication("gone@example.com", "ROLE_USER")))
                 .isInstanceOf(CustomException.class);
+    }
+
+    @Test
+    void 보관기간이_지난_만료_폐기_토큰을_정리한다() {
+        ArgumentCaptor<LocalDateTime> cutoff = ArgumentCaptor.forClass(LocalDateTime.class);
+
+        refreshTokenService.cleanUpDeadTokens();
+
+        verify(refreshTokenRepository).deleteDeadTokensBefore(cutoff.capture());
+        // 보관 기간 7일 — 오늘보다 과거여야 하고, 살아 있는 토큰을 지울 만큼 최근이면 안 된다
+        assertThat(cutoff.getValue()).isBefore(LocalDateTime.now().minusDays(6));
+        assertThat(cutoff.getValue()).isAfter(LocalDateTime.now().minusDays(8));
     }
 
     private Authentication authentication(String loginId, String role) {
