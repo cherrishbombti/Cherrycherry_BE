@@ -30,8 +30,8 @@ public class DeviceService {
         Member member = memberRepository.findByDeviceMac(request.getDeviceId())
                 .orElseThrow(() -> new CustomException(ErrorCode.DEVICE_NOT_REGISTERED));
 
-        // EVENT = 사건 보고(로그 적재), HEARTBEAT = 주기 보고(상태 갱신만)
-        boolean isEvent = "EVENT".equalsIgnoreCase(request.getReportType());
+        // report_type 은 HEARTBEAT | EVENT 만 허용 (오타·누락은 400)
+        boolean isEvent = parseIsEvent(request.getReportType());
 
         // 2. 상태 결정: event_type 있으면 파싱, 없으면(HEARTBEAT) 현재 상태 유지
         MemberStatus newStatus = resolveStatus(request, member, isEvent);
@@ -64,6 +64,7 @@ public class DeviceService {
         // 5. 배터리·신호 (device 블록 없으면 null → 기존 값 유지)
         Integer batteryPct = request.getDevice() == null ? null : request.getDevice().getBatteryPct();
         Integer rssi = request.getDevice() == null ? null : request.getDevice().getRssi();
+        validateDeviceMetrics(batteryPct, rssi);
 
         // 6. member_info 최신 상태 업데이트 (항상 실행)
         member.updateFromDevice(newStatus, vibrator, radar, thermal, batteryPct, rssi);
@@ -87,7 +88,26 @@ public class DeviceService {
             throw new CustomException(ErrorCode.INVALID_EVENT_TYPE);
         }
     }
+    /** report_type: EVENT → true, HEARTBEAT → false, 그 외·누락 → 400 */
+    private boolean parseIsEvent(String reportType) {
+        if ("EVENT".equalsIgnoreCase(reportType)) {
+            return true;
+        }
+        if ("HEARTBEAT".equalsIgnoreCase(reportType)) {
+            return false;
+        }
+        throw new CustomException(ErrorCode.INVALID_REPORT_TYPE);
+    }
 
+    /** 외부 payload 값 범위 검증. battery_pct 0~100, rssi ≤ 0. */
+    private void validateDeviceMetrics(Integer batteryPct, Integer rssi) {
+        if (batteryPct != null && (batteryPct < 0 || batteryPct > 100)) {
+            throw new CustomException(ErrorCode.INVALID_INPUT_VALUE);
+        }
+        if (rssi != null && rssi > 0) {
+            throw new CustomException(ErrorCode.INVALID_INPUT_VALUE);
+        }
+    }
     /**
      * 센서 상태 문자열 → Boolean.
      * OK → true(정상), FAIL → false(고장), UNKNOWN/null → null(판단 불가).
