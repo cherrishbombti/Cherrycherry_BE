@@ -66,6 +66,11 @@ public class Member {
     private Boolean radar;        // 레이더 센서 정상 여부
     private Boolean thermal;      // 열화상 센서 정상 여부
 
+    // ── 기기 자체 상태 (기기 관리 화면용) ──────────
+    @Column(name = "battery_pct")
+    private Integer batteryPct;   // 배터리 잔량 (%)
+
+    private Integer rssi;         // Wi-Fi 신호 세기 (dBm, 음수)
     // ── 피보호자에 종속된 데이터 ──────────────────────
     // 피보호자가 사라지면 함께 사라져야 하는 것들. 남아있으면 FK 제약에 걸려
     // 피보호자 삭제 자체가 실패하므로 cascade 로 함께 정리한다.
@@ -111,11 +116,19 @@ public class Member {
 
     // 라즈베리파이 데이터 수신 시 상태 업데이트
     public void updateFromDevice(MemberStatus status,
-                                 Boolean vibrator, Boolean radar, Boolean thermal) {
+                                 Boolean vibrator, Boolean radar, Boolean thermal,
+                                 Integer batteryPct, Integer rssi) {
         this.status = status;
         this.vibrator = vibrator;
         this.radar = radar;
         this.thermal = thermal;
+        // device 블록이 없는 payload가 와도 마지막 값이 지워지지 않도록 null-guard
+        if (batteryPct != null) {
+            this.batteryPct = batteryPct;
+        }
+        if (rssi != null) {
+            this.rssi = rssi;
+        }
         // 기기가 보낸 timestamp가 아닌 "서버 수신 시각" 기준으로 고정
         // (기기 시계가 틀어져도 연결 생존 판정은 정확해야 하므로)
         this.deviceLastSeen = LocalDateTime.now();
