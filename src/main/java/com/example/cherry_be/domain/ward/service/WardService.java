@@ -356,4 +356,13 @@ public class WardService {
         return notificationService.markAllAsRead(getGuardian(oauthEmail));
     }
 
+    /**
+     * [GET] /api/wards/me/notifications/unread-count — 미읽음 개수
+     */
+    @Transactional(readOnly = true)
+    public UnreadCountResponse getUnreadCount(String oauthEmail) {
+        long count = notificationService.getUnreadCount(getGuardian(oauthEmail));
+        return new UnreadCountResponse(count);
+    }
+
 }

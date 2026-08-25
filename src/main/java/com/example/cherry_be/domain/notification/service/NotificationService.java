@@ -60,6 +60,11 @@ public class NotificationService {
         return notificationRepository.markAllAsReadByUser(user);
     }
 
+    @Transactional(readOnly = true)
+    public long getUnreadCount(User user) {
+        return notificationRepository.countByUserAndIsReadFalse(user);
+    }
+
     // ── 기관 수신함 ──────────────────────────────────
 
     @Transactional(readOnly = true)
