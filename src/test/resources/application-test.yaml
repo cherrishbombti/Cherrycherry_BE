@@ -50,6 +50,10 @@ jwt:
   secret: test-secret-key-for-ci-only-not-a-real-credential
   expiration-time: 3600000
 
+# AES 키는 16/24/32 바이트여야 한다 (StringEncryptConverter 제약). 아래는 32바이트.
+encryption:
+  key: test-encryption-key-ci-only-32b!
+
 cors:
   allowed-origins: http://localhost:5173
 

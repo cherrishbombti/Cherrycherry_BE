@@ -2,6 +2,7 @@ package com.example.cherry_be.domain.health.entity;
 
 import com.example.cherry_be.domain.member.entity.Member;
 import com.example.cherry_be.global.common.BaseTimeEntity;
+import com.example.cherry_be.global.crypto.StringEncryptConverter;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;
@@ -29,12 +30,25 @@ public class MemberHealth extends BaseTimeEntity {
     @JoinColumn(name = "member_id", nullable = false, unique = true)
     private Member member;
 
-    @Column(name = "disease")
+    // ── 민감정보: AES-GCM 으로 암호화해 저장한다 ──
+    // 암호문은 Base64 까지 거쳐 원문보다 훨씬 길어진다. 한글은 UTF-8 에서 3바이트라
+    // 입력 한도인 255자만 넣어도 암호화 후 1060자가 되므로 여유 있게 2048 로 잡는다.
+    // (입력 가능 길이가 늘어난 것이 아니다. 프론트 maxLength 는 255 그대로 유지)
+    //
+    // TEXT 가 아니라 varchar 인 이유: ddl-auto=update 는 varchar 확장은 자동으로
+    // 처리하지만 varchar→TEXT 변환은 하지 않아, TEXT 로 두면 팀원마다 수동 ALTER 가 필요해진다.
+    //
+    // 저장값은 IV 가 매번 달라 같은 원문이라도 매번 다르다. 검색·정렬·동등비교 불가.
+
+    @Convert(converter = StringEncryptConverter.class)
+    @Column(name = "disease", length = 2048)
     private String disease;        // 기저질환
 
-    @Column(name = "medication")
+    @Convert(converter = StringEncryptConverter.class)
+    @Column(name = "medication", length = 2048)
     private String medication;     // 복용약
 
+    @Convert(converter = StringEncryptConverter.class)
     @Column(name = "memo", columnDefinition = "TEXT")
     private String memo;           // 기타 병력
 
