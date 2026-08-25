@@ -18,8 +18,8 @@ public class WardRegisterRequest {
     private String address;
 
     @NotBlank(message = "전화번호는 필수입니다.")
-    // 휴대폰(01x) + 집전화·지역번호(02, 0xx) 모두 허용. 하이픈 유무 허용, 저장 시 숫자만 정규화.
-    @Pattern(regexp = "^0\\d{1,2}-?\\d{3,4}-?\\d{4}$", message = "전화번호 형식이 올바르지 않습니다. (예: 010-1234-5678, 02-123-4567)")
+    // 휴대폰(01x)·지역번호(0XX)·서울(02) 허용. 2자리 국번은 02만, 나머지는 3자리. 저장 시 숫자만 정규화.
+    @Pattern(regexp = "^(?:02|0\\d{2})-?\\d{3,4}-?\\d{4}$", message = "전화번호 형식이 올바르지 않습니다. (예: 010-1234-5678, 02-123-4567)")
     private String phone;
 
     private String relationship;
