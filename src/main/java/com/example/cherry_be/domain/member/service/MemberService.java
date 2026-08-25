@@ -172,6 +172,18 @@ public class MemberService {
         return memberHealthService.patch(member, request, toActor(organization));
     }
 
+    /**
+     * [DELETE] /api/targets/{targetId}/health — 건강정보 삭제
+     *
+     * 수정과 같은 권한을 요구한다(보호자 소유 피보호자는 기관이 삭제할 수 없다).
+     * 값을 읽지 못하게 된 건강정보를 되돌리는 경로이기도 하다.
+     */
+    @Transactional
+    public void deleteHealth(String orgId, Long targetId) {
+        Member member = findManagedMember(findOrganization(orgId), targetId, orgId);
+        memberHealthService.deleteByMember(member);
+    }
+
     private MemberHealthService.Actor toActor(Organization organization) {
         return MemberHealthService.Actor.builder()
                 .type(UpdatedByType.ORGANIZATION)

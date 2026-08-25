@@ -2,6 +2,7 @@ package com.example.cherry_be.global.crypto;
 
 import com.example.cherry_be.global.exception.CustomException;
 import com.example.cherry_be.global.exception.ErrorCode;
+import jakarta.annotation.PostConstruct;
 import jakarta.persistence.AttributeConverter;
 import jakarta.persistence.Converter;
 import java.nio.charset.StandardCharsets;
@@ -38,12 +39,11 @@ public class StringEncryptConverter implements AttributeConverter<String, String
     private static final int IV_LENGTH = 12;        // GCM 권장 IV 길이
     private static final int TAG_BIT_LENGTH = 128;  // 인증 태그 길이
 
-    private static SecretKeySpec secretKey;
+    // JPA 가 컨버터 인스턴스를 직접 만드는 경로가 있어 인스턴스 필드 주입은 신뢰할 수 없다.
+    // 스프링이 만든 빈에서 키를 static 으로 올려두고 모든 인스턴스가 공유한다.
+    // 여러 스레드가 읽으므로 volatile 로 가시성을 보장한다.
+    private static volatile SecretKeySpec secretKey;
 
-    /**
-     * JPA 가 컨버터를 직접 생성하는 경로가 있어 인스턴스 주입을 신뢰할 수 없다.
-     * 스프링이 만든 빈에서 키를 static 으로 올려두고 공유한다.
-     */
     @Value("${encryption.key}")
     public void setKey(String key) {
         byte[] raw = key.getBytes(StandardCharsets.UTF_8);
@@ -52,6 +52,37 @@ public class StringEncryptConverter implements AttributeConverter<String, String
                     "encryption.key 는 16/24/32 바이트여야 합니다. 현재: " + raw.length);
         }
         secretKey = new SecretKeySpec(raw, "AES");
+    }
+
+    /**
+     * 기동 시 암·복호화를 한 번 돌려본다.
+     *
+     * 키 설정이 잘못됐을 때 첫 요청에서 터지는 대신 여기서 즉시 실패시킨다.
+     * 민감정보라 "쓰는 시점에 알게 되는" 실패가 특히 곤란하다.
+     */
+    @PostConstruct
+    void verifyKeyUsable() {
+        String probe = "encryption-self-test";
+        if (!probe.equals(convertToEntityAttribute(convertToDatabaseColumn(probe)))) {
+            throw new IllegalStateException("암호화 자체 검증에 실패했습니다. encryption.key 설정을 확인하세요.");
+        }
+        log.info("건강정보 암호화 준비 완료 (AES-GCM)");
+    }
+
+    /**
+     * 키를 가져온다.
+     *
+     * 빈 초기화 순서에 따라 이 컨버터가 키보다 먼저 쓰일 수 있다(리뷰 지적).
+     * 그 경우 NPE 로 터지면 원인을 알기 어려우므로 무엇이 문제인지 명확히 알린다.
+     */
+    private static SecretKeySpec key() {
+        SecretKeySpec key = secretKey;
+        if (key == null) {
+            throw new IllegalStateException(
+                    "암호화 키가 아직 초기화되지 않았습니다. "
+                    + "StringEncryptConverter 빈이 생성되기 전에 암·복호화가 호출됐습니다.");
+        }
+        return key;
     }
 
     @Override
@@ -64,7 +95,7 @@ public class StringEncryptConverter implements AttributeConverter<String, String
             new SecureRandom().nextBytes(iv);
 
             Cipher cipher = Cipher.getInstance(TRANSFORMATION);
-            cipher.init(Cipher.ENCRYPT_MODE, secretKey, new GCMParameterSpec(TAG_BIT_LENGTH, iv));
+            cipher.init(Cipher.ENCRYPT_MODE, key(), new GCMParameterSpec(TAG_BIT_LENGTH, iv));
             byte[] cipherText = cipher.doFinal(plainText.getBytes(StandardCharsets.UTF_8));
 
             byte[] combined = new byte[iv.length + cipherText.length];
@@ -94,7 +125,7 @@ public class StringEncryptConverter implements AttributeConverter<String, String
             System.arraycopy(combined, IV_LENGTH, cipherText, 0, cipherText.length);
 
             Cipher cipher = Cipher.getInstance(TRANSFORMATION);
-            cipher.init(Cipher.DECRYPT_MODE, secretKey, new GCMParameterSpec(TAG_BIT_LENGTH, iv));
+            cipher.init(Cipher.DECRYPT_MODE, key(), new GCMParameterSpec(TAG_BIT_LENGTH, iv));
 
             return new String(cipher.doFinal(cipherText), StandardCharsets.UTF_8);
 

@@ -60,12 +60,18 @@ public class MemberHealthService {
     }
 
     /**
-     * 기존 행을 읽어온다. 복호화에 실패하면 그 행을 지우고 없는 것으로 취급한다.
+     * 수정 전에 기존 행을 읽어온다. 복호화에 실패하면 덮어쓰지 않고 실패시킨다.
      *
-     * 읽지 못하는 값은 이미 복구할 수 없으므로 덮어써도 잃을 것이 없다.
-     * 이 처리가 없으면 읽기도 쓰기도 막혀 API 로는 되돌릴 방법이 사라진다.
+     * 자동으로 지우고 새로 쓰지 않는 이유:
+     * 복호화 실패가 곧 "복구 불가"를 뜻하지는 않는다. 잘못된 키가 잠시 배포된 상황이라면
+     * 원래 키를 되돌리는 것만으로 살아날 데이터다. 그 상태에서 자동 삭제하면
+     * 되살릴 수 있었던 민감정보를 영구히 잃는다.
+     * 특히 PATCH 는 전달하지 않은 필드를 유지하는 것이 계약인데,
+     * 행을 새로 만들면 그 필드들이 null 로 날아간다.
+     *
+     * 그래서 버릴지 말지는 사용자가 DELETE 로 명시적으로 결정하게 한다.
      */
-    private MemberHealth findExistingOrDiscardBroken(Member member) {
+    private MemberHealth findExistingForUpdate(Member member) {
         try {
             return memberHealthRepository.findByMember(member).orElse(null);
 
@@ -73,11 +79,8 @@ public class MemberHealthService {
             if (!CustomException.has(e, ErrorCode.DECRYPTION_FAILED)) {
                 throw e;
             }
-            // 파생 삭제는 대상을 엔티티로 읽어와 같은 실패를 반복하므로 벌크 삭제를 쓴다.
-            int removed = memberHealthRepository.deleteByMemberInBulk(member);
-            log.warn("복호화 불가 건강정보를 제거하고 새로 저장한다 - memberId: {}, 제거: {}행",
-                    member.getId(), removed);
-            return null;
+            log.error("복호화 불가 건강정보에 수정 시도 - memberId: {}", member.getId());
+            throw new CustomException(ErrorCode.HEALTH_UNREADABLE);
         }
     }
 
@@ -86,7 +89,7 @@ public class MemberHealthService {
      */
     @Transactional
     public HealthResponse put(Member member, HealthPutRequest request, Actor actor) {
-        MemberHealth health = findExistingOrDiscardBroken(member);
+        MemberHealth health = findExistingForUpdate(member);
 
         if (health == null) {
             health = memberHealthRepository.save(MemberHealth.builder()
@@ -110,7 +113,7 @@ public class MemberHealthService {
      */
     @Transactional
     public HealthResponse patch(Member member, HealthPatchRequest request, Actor actor) {
-        MemberHealth health = findExistingOrDiscardBroken(member);
+        MemberHealth health = findExistingForUpdate(member);
 
         if (health == null) {
             // 최초 등록: 전달된 필드만 채우고 나머지는 null로 둔다
@@ -131,13 +134,15 @@ public class MemberHealthService {
     }
 
     /**
-     * 피보호자 삭제 시 함께 정리한다.
+     * 건강정보 삭제. 사용자의 명시적 삭제 요청과 피보호자 삭제 시 정리에 함께 쓴다.
      *
-     * Member 에 연관관계를 두지 않아(EAGER 복호화 회피) cascade 가 걸리지 않으므로 직접 지운다.
-     * 벌크 삭제라 복호화에 실패하는 행도 지울 수 있다.
+     * 벌크 삭제라 엔티티를 읽지 않으므로 복호화가 실패하는 행도 지울 수 있다.
+     * 값을 못 읽게 된 경우의 유일한 복구 경로이기도 하다.
+     * (Member 에 연관관계를 두지 않아 — EAGER 복호화 회피 — cascade 가 걸리지 않는다)
      */
     @Transactional
     public void deleteByMember(Member member) {
-        memberHealthRepository.deleteByMemberInBulk(member);
+        int removed = memberHealthRepository.deleteByMemberInBulk(member);
+        log.info("건강정보 삭제 - memberId: {}, 삭제: {}행", member.getId(), removed);
     }
 }

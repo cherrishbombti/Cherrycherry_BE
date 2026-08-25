@@ -184,6 +184,16 @@ public class WardController {
         return ResponseEntity.ok(wardService.patchHealth(authentication.getName(), request));
     }
 
+    /**
+     * [DELETE] /api/wards/me/health — 건강정보 삭제
+     * 저장값을 읽지 못하게 된 경우의 복구 경로이기도 하다.
+     */
+    @DeleteMapping("/me/health")
+    public ResponseEntity<Void> deleteHealth(Authentication authentication) {
+        wardService.deleteHealth(authentication.getName());
+        return ResponseEntity.noContent().build();
+    }
+
 
     // ── 알림함 (#25) ────────────────────────────────
 
