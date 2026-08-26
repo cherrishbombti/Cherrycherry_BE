@@ -30,11 +30,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
-    env:
-      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      AWS_DEFAULT_REGION: ${{ secrets.AWS_REGION }}
-
     steps:
       - name: 체크아웃
         uses: actions/checkout@v7
@@ -65,25 +60,17 @@ jobs:
           echo "path=$path" >> "$GITHUB_OUTPUT"
           echo "빌드된 jar: $path ($(du -h "$path" | cut -f1))"
 
-      # 보안그룹 22번은 평소 개발자 IP 만 열어둔다.
-      # Actions 러너는 실행마다 IP 가 달라 미리 허용해둘 수 없으므로,
-      # 배포 동안만 러너 IP 를 열고 끝나면 반드시 지운다.
-      - name: 러너 IP 임시 허용
-        id: sg
-        run: |
-          ip=$(curl -sf --retry 3 https://checkip.amazonaws.com)
-          if [ -z "$ip" ]; then
-            echo "::error::러너 공인 IP 를 확인하지 못했습니다."
-            exit 1
-          fi
-          cidr="${ip}/32"
-          echo "cidr=$cidr" >> "$GITHUB_OUTPUT"
-          aws ec2 authorize-security-group-ingress \
-            --group-id "${{ secrets.AWS_SG_ID }}" \
-            --protocol tcp --port 22 --cidr "$cidr" \
-            --output text > /dev/null
-          echo "허용됨: $cidr"
-
+      # 보안그룹 22번은 0.0.0.0/0 으로 열어두고, 인증은 키로만 받는다.
+      #
+      # Actions 러너는 실행마다 공인 IP 가 달라 미리 허용해둘 수 없다.
+      # 배포 동안만 러너 IP 를 여는 방식이 더 좁지만, 그러려면 러너에
+      # 보안그룹 수정 권한(IAM 액세스 키)을 줘야 한다. 이 프로젝트의 AWS
+      # 계정은 IAM 조작이 막혀 있어 최소 권한 사용자를 만들 수 없고,
+      # 기존 사용자의 넓은 키를 public 저장소 Secrets 에 넣는 것은
+      # 포트를 여는 것보다 위험하다고 판단해 이 방식을 택했다.
+      #
+      # 전제: sshd 의 PasswordAuthentication 이 no 여야 한다.
+      # 비밀번호 로그인이 열려 있으면 이 구성은 성립하지 않는다.
       - name: SSH 키 준비
         run: |
           mkdir -p ~/.ssh
@@ -127,15 +114,3 @@ jobs:
           echo "::error::60초 안에 정상 응답을 받지 못했습니다."
           echo "  서버 로그: sudo journalctl -u cherry -n 100 --no-pager"
           exit 1
-
-      # 앞 스텝이 실패해도 규칙은 반드시 지운다.
-      # 안 지우면 죽은 러너 IP 가 보안그룹에 계속 쌓이고,
-      # 규칙 개수 상한(기본 60개)에 걸려 다음 배포가 막힌다.
-      - name: 러너 IP 허용 해제
-        if: always() && steps.sg.outputs.cidr != ''
-        run: |
-          aws ec2 revoke-security-group-ingress \
-            --group-id "${{ secrets.AWS_SG_ID }}" \
-            --protocol tcp --port 22 --cidr "${{ steps.sg.outputs.cidr }}" \
-            --output text > /dev/null
-          echo "해제됨: ${{ steps.sg.outputs.cidr }}"
