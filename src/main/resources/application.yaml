@@ -24,17 +24,27 @@ spring:
     oauth2:
       client:
         registration:
+          # 콜백 주소는 환경마다 달라 환경변수로 주입한다. 기본값은 로컬 개발용이라
+          # 팀원은 .env 수정 없이 그대로 쓰면 된다.
+          # 소셜 로그인은 현재 앱에서만 쓴다(기관 웹은 자체 로그인이라 이 경로를 타지 않는다).
+          # 그래서 운영 값은 앱의 API_BASE_URL과 같은 호스트여야 하고, 구글·카카오 콘솔에도
+          # 같은 값을 등록해야 한다 — 세 곳 중 하나라도 어긋나면 redirect_uri_mismatch가 난다.
+          # 앱을 Cloudflare Pages 도메인으로 태울 거라면, Pages Function이 콜백 302를
+          # 브라우저에 그대로 넘기는지 먼저 확인해야 한다(따라가 버리면 콜백이 깨진다).
           google:
             client-id: ${GOOGLE_CLIENT_ID}
             client-secret: ${GOOGLE_CLIENT_SECRET}
             scope:
               - email
               - profile
-            redirect-uri: "http://localhost:8080/api/auth/google/callback"
+            redirect-uri: ${OAUTH_GOOGLE_REDIRECT_URI:http://localhost:8080/api/auth/google/callback}
           kakao:
             client-id: ${KAKAO_CLIENT_ID}
             client-secret: ${KAKAO_CLIENT_SECRET}
-            redirect-uri: "http://localhost:8080/api/auth/KAKAO/callback"
+            # 경로의 KAKAO 대문자는 카카오 콘솔에 등록된 redirect_uri와 맞춘 값이다.
+            # 라우팅 자체는 SocialLoginTypeConverter가 대소문자를 흡수하므로 소문자여도 되지만,
+            # 서버만 바꾸면 콘솔 등록값과 어긋나 redirect_uri_mismatch가 난다.
+            redirect-uri: ${OAUTH_KAKAO_REDIRECT_URI:http://localhost:8080/api/auth/KAKAO/callback}
             authorization-grant-type: authorization_code
             client-authentication-method: client_secret_post
             scope:
