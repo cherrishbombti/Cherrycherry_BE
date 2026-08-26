@@ -7,10 +7,13 @@ import com.example.cherry_be.domain.user.service.OauthService;
 import com.example.cherry_be.domain.user.service.UserService;
 import com.example.cherry_be.domain.user.service.UserService.LoginResult;
 import com.example.cherry_be.global.auth.JwtUtil;
+import com.example.cherry_be.global.auth.RefreshCookie;
+import com.example.cherry_be.global.auth.RefreshTokenService;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -28,6 +31,8 @@ public class OauthController {
     private final UserService userService;
     private final JwtUtil jwtUtil;
     private final MemberRepository memberRepository;
+    private final RefreshTokenService refreshTokenService;
+    private final RefreshCookie refreshCookie;
 
     @Value("${frontend.redirect-url}")
     private String frontendRedirectUrl;
@@ -78,14 +83,20 @@ public class OauthController {
         log.info(">> [5] 피보호자 등록 여부 = {}, 등록 필요 = {}", hasWard, needsWardRegistration);
 
         String jwtToken = jwtUtil.createToken(result.getUser().getOauthEmail(), "ROLE_USER");
+        String refreshToken = refreshTokenService.issue(result.getUser());
         log.info(">> [6] JWT 토큰 발급 완료");
 
         String redirectUrl;
         if ("app".equals(state)) {
+            // 커스텀 스킴 리다이렉트에는 Set-Cookie 가 따라갈 수 없어, 앱만 쿼리로 받는다.
+            // 리프레시 토큰은 URL-safe Base64 라 별도 인코딩이 필요 없다.
             redirectUrl = "cherrishbomb://login"
                     + "?token=" + jwtToken
+                    + "&refreshToken=" + refreshToken
                     + "&isNewUser=" + needsWardRegistration;
         } else {
+            // 웹은 리다이렉트 응답에 쿠키를 실어 보낸다 — 프론트가 토큰을 만질 일이 없다.
+            response.addHeader(HttpHeaders.SET_COOKIE, refreshCookie.create(refreshToken).toString());
             redirectUrl = frontendRedirectUrl
                     + "?token=" + jwtToken
                     + "&isNewUser=" + needsWardRegistration;
@@ -112,9 +123,12 @@ public class OauthController {
         boolean hasWard = memberRepository.findByUser(result.getUser()).isPresent();
 
         String jwtToken = jwtUtil.createToken(result.getUser().getOauthEmail(), "ROLE_USER");
+        String refreshToken = refreshTokenService.issue(result.getUser());
 
+        // 이 경로는 웹 프론트가 호출하므로 리프레시 토큰은 쿠키로만 내려보낸다(#52).
         return ResponseEntity.ok()
                 .header("Authorization", "Bearer " + jwtToken)
+                .header(HttpHeaders.SET_COOKIE, refreshCookie.create(refreshToken).toString())
                 .body(Map.of(
                         "token", jwtToken,
                         "isNewUser", !hasWard,

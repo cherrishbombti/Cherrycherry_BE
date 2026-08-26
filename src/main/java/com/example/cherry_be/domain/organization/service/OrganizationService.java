@@ -8,6 +8,7 @@ import com.example.cherry_be.domain.organization.repository.OrganizationReposito
 import com.example.cherry_be.global.exception.CustomException;
 import com.example.cherry_be.global.exception.ErrorCode;
 import com.example.cherry_be.global.auth.JwtUtil;
+import com.example.cherry_be.global.auth.RefreshTokenService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.data.domain.Pageable;
@@ -25,6 +26,7 @@ public class OrganizationService {
     private final PasswordEncoder passwordEncoder; // 비밀번호 암호화 도구
     private final JwtUtil jwtUtil;
     private final NotificationService notificationService;
+    private final RefreshTokenService refreshTokenService;
 
     /** 로그인 ID로 기관 조회 (로그인 실패는 별도 코드를 쓰므로 여기서 처리하지 않는다) */
     private Organization findOrganization(String orgId) {
@@ -83,11 +85,14 @@ public class OrganizationService {
     }
 
 
+    /** 로그인으로 발급된 토큰 한 쌍. 리프레시 토큰의 전달 방식(쿠키/본문)은 컨트롤러가 정한다. */
+    public record LoginTokens(String accessToken, String refreshToken) {}
+
     /**
-     * 기관 로그인 및 JWT 토큰 발급
+     * 기관 로그인 및 토큰 발급
      */
-    @Transactional(readOnly = true) // 데이터를 읽기만 하므로 성능 최적화를 위해 readOnly 적용
-    public String login(String orgId, String rawPassword) {
+    @Transactional // 리프레시 토큰을 저장하므로 readOnly 가 아니다
+    public LoginTokens login(String orgId, String rawPassword) {
 
         // 1. DB에서 아이디 조회 (없으면 예외 발생)
         Organization organization = organizationRepository.findByOrgId(orgId)
@@ -101,7 +106,12 @@ public class OrganizationService {
 
         // 3. 로그인 성공! JwtUtil 기계를 작동시켜 토큰 발급
         // 기관(관리자)이므로 권한(role)은 "ROLE_ADMIN"으로 고정하여 발급합니다.
-        return jwtUtil.createToken(organization.getOrgId(), "ROLE_ADMIN");
+        String accessToken = jwtUtil.createToken(organization.getOrgId(), "ROLE_ADMIN");
+
+        // 4. access token 이 짧게 만료되므로, 재로그인 없이 갱신할 리프레시 토큰을 함께 발급한다(#52).
+        String refreshToken = refreshTokenService.issue(organization);
+
+        return new LoginTokens(accessToken, refreshToken);
     }
 
 

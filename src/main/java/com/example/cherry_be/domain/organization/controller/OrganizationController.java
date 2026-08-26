@@ -5,10 +5,13 @@ import com.example.cherry_be.domain.notification.dto.NotificationPageResponse;
 import com.example.cherry_be.domain.organization.dto.OrgMeResponse;
 import com.example.cherry_be.domain.organization.dto.SignUpRequest;
 import com.example.cherry_be.domain.organization.service.OrganizationService;
+import com.example.cherry_be.domain.organization.service.OrganizationService.LoginTokens;
+import com.example.cherry_be.global.auth.RefreshCookie;
 import java.util.HashMap;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
@@ -19,6 +22,7 @@ import org.springframework.web.bind.annotation.*;
 public class OrganizationController {
 
     private final OrganizationService organizationService;
+    private final RefreshCookie refreshCookie;
 
     /**
      * 기관 회원가입 API
@@ -45,14 +49,17 @@ public class OrganizationController {
     public ResponseEntity<Map<String, String>> login(@RequestBody LoginRequest request) {
 
         // 1. Service 부서로 아이디와 비밀번호를 넘겨서 검증받고, 성공하면 토큰을 받아옵니다.
-        String token = organizationService.login(request.getOrgId(), request.getPassword());
+        LoginTokens tokens = organizationService.login(request.getOrgId(), request.getPassword());
 
         // 2. 리액트(프론트엔드)가 쉽게 꺼내 쓸 수 있도록 {"token": "eyJhbGci..."} 형태의 JSON으로 포장합니다.
         Map<String, String> response = new HashMap<>();
-        response.put("token", token);
+        response.put("token", tokens.accessToken());
 
-        // 3. 성공 상태 코드(200 OK)와 함께 포장된 토큰을 응답으로 보냅니다.
-        return ResponseEntity.ok(response);
+        // 3. 기관 콘솔은 웹 전용이므로 리프레시 토큰은 httpOnly 쿠키로만 내려보냅니다(#52).
+        //    본문에 담으면 JS가 읽을 수 있어 쿠키를 쓰는 의미가 없어집니다.
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, refreshCookie.create(tokens.refreshToken()).toString())
+                .body(response);
     }
 
 

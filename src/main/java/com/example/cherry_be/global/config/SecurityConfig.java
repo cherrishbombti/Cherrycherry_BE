@@ -64,6 +64,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/org/login", "/api/org/signup").permitAll()
                         .requestMatchers("/api/device/data").permitAll() // 라즈베리파이 인증 없이 허용
+                        .requestMatchers("/api/auth/logout").authenticated() // 폐기 대상 소유자를 알아야 하므로 인증 필요
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/oauth2/**", "/login/oauth2/code/**").permitAll()
                         // 역할 기반 접근 제어
