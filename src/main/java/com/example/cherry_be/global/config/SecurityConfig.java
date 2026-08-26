@@ -3,6 +3,7 @@ package com.example.cherry_be.global.config;
 import com.example.cherry_be.global.auth.JwtAuthenticationFilter;
 import com.example.cherry_be.global.auth.JwtUtil;
 import jakarta.servlet.http.HttpServletResponse;
+import java.util.Arrays;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -87,7 +88,13 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
 
-        configuration.setAllowedOrigins(List.of(allowedOrigins.split(",")));
+        // allowCredentials(true)라 와일드카드 "*"는 스펙상 거부된다.
+        // Vercel 프리뷰 배포처럼 호스트가 매번 바뀌는 경우를 패턴으로 받기 위해 OriginPatterns를 쓴다.
+        configuration.setAllowedOriginPatterns(
+                Arrays.stream(allowedOrigins.split(","))
+                        .map(String::trim)
+                        .filter(origin -> !origin.isEmpty())
+                        .toList());
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setAllowCredentials(true);
