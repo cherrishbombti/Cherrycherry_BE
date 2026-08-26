@@ -230,4 +230,12 @@ public class WardController {
         return ResponseEntity.noContent().build();
     }
 
+    /**
+     * [GET] /api/wards/me/notifications/unread-count — 미읽음 알림 개수 (배지용)
+     */
+    @GetMapping("/me/notifications/unread-count")
+    public ResponseEntity<UnreadCountResponse> getUnreadCount(Authentication authentication) {
+        return ResponseEntity.ok(wardService.getUnreadCount(authentication.getName()));
+    }
+
 }
