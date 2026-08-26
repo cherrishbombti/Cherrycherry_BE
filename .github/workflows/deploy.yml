@@ -1,0 +1,141 @@
+name: Deploy
+
+# main 에 push 될 때만 EC2 로 배포한다.
+#
+# pull_request 에서는 돌리지 않는다.
+# 이 저장소는 public 이라 포크에서 온 PR 에 Secrets 를 넘기면
+# 배포 키가 그대로 노출된다. GitHub 이 포크 PR 에 Secrets 를 주지 않지만,
+# 트리거 자체를 push 로 좁혀 실수할 여지를 없앤다.
+#
+# 같은 이유로 self-hosted 러너도 쓰지 않는다.
+# public 저장소에서는 포크 PR 의 코드가 러너(=배포 서버)에서 실행될 수 있다.
+
+on:
+  push:
+    branches: [ main ]
+  # 손으로도 배포할 수 있게 열어둔다. 롤백이나 재배포에 쓴다.
+  workflow_dispatch:
+
+# 배포가 겹치면 jar 교체와 재시작이 뒤엉킨다.
+# 앞선 배포는 취소하지 않고(=cancel-in-progress 없음) 순서대로 끝낸다.
+concurrency:
+  group: deploy-production
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: EC2 배포
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_DEFAULT_REGION: ${{ secrets.AWS_REGION }}
+
+    steps:
+      - name: 체크아웃
+        uses: actions/checkout@v7
+
+      - name: JDK 21 설치
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Gradle 설정
+        uses: gradle/actions/setup-gradle@v6
+
+      # 테스트는 CI 워크플로가 이미 돌린다. 여기서는 jar 만 만든다.
+      - name: jar 빌드
+        run: ./gradlew bootJar --stacktrace
+
+      # 만들어진 jar 경로를 고정한다.
+      # 버전이 바뀌어도(0.0.1-SNAPSHOT → 0.0.2) 이후 스텝을 손대지 않아도 되게 한다.
+      - name: jar 경로 확인
+        id: jar
+        run: |
+          path=$(ls build/libs/*-SNAPSHOT.jar | head -n 1)
+          if [ ! -f "$path" ]; then
+            echo "::error::build/libs 에 jar 가 없습니다."
+            exit 1
+          fi
+          echo "path=$path" >> "$GITHUB_OUTPUT"
+          echo "빌드된 jar: $path ($(du -h "$path" | cut -f1))"
+
+      # 보안그룹 22번은 평소 개발자 IP 만 열어둔다.
+      # Actions 러너는 실행마다 IP 가 달라 미리 허용해둘 수 없으므로,
+      # 배포 동안만 러너 IP 를 열고 끝나면 반드시 지운다.
+      - name: 러너 IP 임시 허용
+        id: sg
+        run: |
+          ip=$(curl -sf --retry 3 https://checkip.amazonaws.com)
+          if [ -z "$ip" ]; then
+            echo "::error::러너 공인 IP 를 확인하지 못했습니다."
+            exit 1
+          fi
+          cidr="${ip}/32"
+          echo "cidr=$cidr" >> "$GITHUB_OUTPUT"
+          aws ec2 authorize-security-group-ingress \
+            --group-id "${{ secrets.AWS_SG_ID }}" \
+            --protocol tcp --port 22 --cidr "$cidr" \
+            --output text > /dev/null
+          echo "허용됨: $cidr"
+
+      - name: SSH 키 준비
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/deploy.pem
+          chmod 600 ~/.ssh/deploy.pem
+          # 호스트 키를 미리 등록해 StrictHostKeyChecking 을 끄지 않는다.
+          # 끄면 중간자에게 배포 키를 넘길 수 있다.
+          ssh-keyscan -H "${{ secrets.EC2_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
+
+      # 실행 중인 app.jar 를 그 자리에서 덮어쓰면,
+      # 아직 클래스를 읽고 있는 JVM 이 깨진 바이트를 만나 죽을 수 있다.
+      # 임시 이름으로 올린 뒤 mv 로 원자적으로 교체한다.
+      - name: jar 전송
+        run: |
+          scp -i ~/.ssh/deploy.pem -o ConnectTimeout=15 \
+            "${{ steps.jar.outputs.path }}" \
+            "${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:~/cherry/app.jar.new"
+
+      - name: 교체 및 재시작
+        run: |
+          ssh -i ~/.ssh/deploy.pem -o ConnectTimeout=15 \
+            "${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}" \
+            'set -e
+             mv ~/cherry/app.jar.new ~/cherry/app.jar
+             sudo systemctl restart cherry'
+
+      # 재시작 직후는 아직 기동 중이라 바로 찌르면 502 가 난다.
+      # 최대 60초 동안 기다리며 401(=시큐리티까지 도달) 이 오는지 본다.
+      - name: 기동 확인
+        run: |
+          for i in $(seq 1 20); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' \
+              "https://${{ secrets.EC2_HOST }}/api/org/me" || true)
+            if [ "$code" = "401" ]; then
+              echo "기동 확인 (HTTP $code)"
+              exit 0
+            fi
+            echo "대기 중... (${i}/20, HTTP $code)"
+            sleep 3
+          done
+          echo "::error::60초 안에 정상 응답을 받지 못했습니다."
+          echo "  서버 로그: sudo journalctl -u cherry -n 100 --no-pager"
+          exit 1
+
+      # 앞 스텝이 실패해도 규칙은 반드시 지운다.
+      # 안 지우면 죽은 러너 IP 가 보안그룹에 계속 쌓이고,
+      # 규칙 개수 상한(기본 60개)에 걸려 다음 배포가 막힌다.
+      - name: 러너 IP 허용 해제
+        if: always() && steps.sg.outputs.cidr != ''
+        run: |
+          aws ec2 revoke-security-group-ingress \
+            --group-id "${{ secrets.AWS_SG_ID }}" \
+            --protocol tcp --port 22 --cidr "${{ steps.sg.outputs.cidr }}" \
+            --output text > /dev/null
+          echo "해제됨: ${{ steps.sg.outputs.cidr }}"
