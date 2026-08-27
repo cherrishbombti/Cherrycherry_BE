@@ -29,7 +29,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String authHeader = request.getHeader("Authorization");
 
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            log.info("JWT 필터: Authorization 헤더 없음 또는 형식 불일치 - {}", request.getRequestURI());
+            // 인증이 필요 없는 경로도 이 필터를 지나므로, 헤더가 없는 것은 정상 동작이다.
+            // INFO 로 남기면 하루 수만 줄이 쌓여 진짜 문제를 덮는다.
+            log.debug("JWT 필터: Authorization 헤더 없음 또는 형식 불일치 - {}", request.getRequestURI());
             filterChain.doFilter(request, response);
             return;
         }

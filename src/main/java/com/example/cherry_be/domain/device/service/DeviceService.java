@@ -12,9 +12,11 @@ import com.example.cherry_be.domain.notification.service.NotificationService;
 import com.example.cherry_be.global.exception.CustomException;
 import com.example.cherry_be.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class DeviceService {
@@ -27,8 +29,13 @@ public class DeviceService {
     public void receiveDeviceData(DeviceDataRequest request) {
 
         // 1. device_id로 피보호자 찾기 (없으면 예외)
+        // 거부된 값을 남기지 않으면 기기가 무엇을 보냈는지 알 수 없어 패킷을 떠야 한다.
+        // 기기 연동 초기에는 형식 불일치(콜론 유무 등)로 이 경로를 자주 타므로 값을 함께 남긴다.
         Member member = memberRepository.findByDeviceMac(request.getDeviceId())
-                .orElseThrow(() -> new CustomException(ErrorCode.DEVICE_NOT_REGISTERED));
+                .orElseThrow(() -> {
+                    log.warn("등록되지 않은 device_id - 수신값: '{}'", request.getDeviceId());
+                    return new CustomException(ErrorCode.DEVICE_NOT_REGISTERED);
+                });
 
         // report_type 은 HEARTBEAT | EVENT 만 허용 (오타·누락은 400)
         boolean isEvent = parseIsEvent(request.getReportType());
