@@ -54,7 +54,7 @@ public class FcmSender {
 
     private void sendOne(DeviceToken target, String title, String body, Map<String, String> data) {
         try {
-            firebaseMessaging.get().send(Message.builder()
+            String messageId = firebaseMessaging.get().send(Message.builder()
                     .setToken(target.getToken())
                     .setNotification(Notification.builder()
                             .setTitle(title)
@@ -62,6 +62,11 @@ public class FcmSender {
                             .build())
                     .putAllData(data)   // 클릭 시 이동에 필요한 값. FCM 제약상 값은 모두 문자열
                     .build());
+
+            // 성공을 남기지 않으면 "안 보냈다"와 "보냈는데 기기에서 안 뜬다"를 구분할 수 없다.
+            // 푸시가 안 온다는 제보가 들어왔을 때 서버를 볼지 클라이언트를 볼지 여기서 갈린다.
+            log.info("푸시 발송 성공 - tokenId: {}, platform: {}, messageId: {}",
+                    target.getId(), target.getPlatform(), messageId);
 
         } catch (FirebaseMessagingException e) {
             handleFailure(target, e);

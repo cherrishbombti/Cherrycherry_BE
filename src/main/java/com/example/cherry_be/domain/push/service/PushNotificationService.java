@@ -47,7 +47,10 @@ public class PushNotificationService {
         try {
             List<DeviceToken> targets = findTargets(payload);
             if (targets.isEmpty()) {
-                log.debug("등록된 기기가 없어 푸시를 건너뜁니다 - notificationId: {}", payload.notificationId());
+                // 알림함에는 쌓이는데 푸시만 안 오는 상황의 가장 흔한 원인이다.
+                // DEBUG 로 두면 기본 로그 레벨에서 안 보여 원인을 찾을 수 없다.
+                log.info("등록된 기기가 없어 푸시를 건너뜁니다 - notificationId: {}, userId: {}, organizationId: {}",
+                        payload.notificationId(), payload.userId(), payload.organizationId());
                 return;
             }
             fcmSender.send(targets, buildTitle(payload), buildBody(payload), buildData(payload));
