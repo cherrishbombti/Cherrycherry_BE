@@ -6,6 +6,11 @@ import com.example.cherry_be.domain.health.dto.HealthPutRequest;
 import com.example.cherry_be.domain.log.dto.LogPageResponse;
 import com.example.cherry_be.domain.notification.dto.NotificationPageResponse;
 import com.example.cherry_be.domain.ward.dto.*;
+import com.example.cherry_be.domain.ward.service.WardContactService;
+import com.example.cherry_be.domain.ward.service.WardHealthService;
+import com.example.cherry_be.domain.ward.service.WardLogService;
+import com.example.cherry_be.domain.ward.service.WardNotificationService;
+import com.example.cherry_be.domain.ward.service.WardOrgLinkService;
 import com.example.cherry_be.domain.ward.service.WardService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -24,7 +29,13 @@ import java.util.List;
 @RequiredArgsConstructor
 public class WardController {
 
-    private final WardService wardService;
+    // 보호자 API 는 관심사별로 서비스가 나뉘어 있다. 경로와 서비스가 1:1 로 대응한다.
+    private final WardService wardService;                          // 등록·요약·센서
+    private final WardOrgLinkService wardOrgLinkService;            // 기관 연동
+    private final WardContactService wardContactService;            // 비상연락망
+    private final WardLogService wardLogService;                    // 사건 이력
+    private final WardHealthService wardHealthService;              // 건강정보
+    private final WardNotificationService wardNotificationService;  // 알림함
 
     /**
      * [POST] /api/wards/me — 피보호자 최초 등록
@@ -63,7 +74,7 @@ public class WardController {
      */
     @GetMapping("/me/organization")
     public ResponseEntity<WardOrganizationResponse> getOrganization(Authentication authentication) {
-        return ResponseEntity.ok(wardService.getOrganization(authentication.getName()));
+        return ResponseEntity.ok(wardOrgLinkService.getOrganization(authentication.getName()));
     }
 
     /**
@@ -75,7 +86,7 @@ public class WardController {
             Authentication authentication,
             @Valid @RequestBody WardOrganizationRequest request) {
         return ResponseEntity.ok(
-                wardService.linkOrganization(authentication.getName(), request));
+                wardOrgLinkService.linkOrganization(authentication.getName(), request));
     }
 
     /**
@@ -83,7 +94,7 @@ public class WardController {
      */
     @DeleteMapping("/me/organization")
     public ResponseEntity<Void> unlinkOrganization(Authentication authentication) {
-        wardService.unlinkOrganization(authentication.getName());
+        wardOrgLinkService.unlinkOrganization(authentication.getName());
         return ResponseEntity.noContent().build();
     }
 
@@ -92,7 +103,7 @@ public class WardController {
      */
     @GetMapping("/me/contacts")
     public ResponseEntity<List<WardContactResponse>> getContacts(Authentication authentication) {
-        return ResponseEntity.ok(wardService.getContacts(authentication.getName()));
+        return ResponseEntity.ok(wardContactService.getContacts(authentication.getName()));
     }
 
     /**
@@ -102,7 +113,7 @@ public class WardController {
     public ResponseEntity<WardContactResponse> addContact(
             Authentication authentication,
             @Valid @RequestBody WardContactRequest request) {
-        return ResponseEntity.ok(wardService.addContact(authentication.getName(), request));
+        return ResponseEntity.ok(wardContactService.addContact(authentication.getName(), request));
     }
 
     /** [PUT] /api/wards/me/contacts/{contactId} — 비상연락망 수정 */
@@ -112,7 +123,7 @@ public class WardController {
             @PathVariable Long contactId,
             @Valid @RequestBody WardContactRequest request) {
         return ResponseEntity.ok(
-                wardService.updateContact(authentication.getName(), contactId, request));
+                wardContactService.updateContact(authentication.getName(), contactId, request));
     }
 
     /** [DELETE] /api/wards/me/contacts/{contactId} — 비상연락망 삭제 */
@@ -120,7 +131,7 @@ public class WardController {
     public ResponseEntity<Void> deleteContact(
             Authentication authentication,
             @PathVariable Long contactId) {
-        wardService.deleteContact(authentication.getName(), contactId);
+        wardContactService.deleteContact(authentication.getName(), contactId);
         return ResponseEntity.noContent().build();
     }
 
@@ -138,7 +149,7 @@ public class WardController {
 
         Pageable pageable = PageRequest.of(page, size);
         return ResponseEntity.ok(
-                wardService.getLogs(authentication.getName(), from, to, pageable));
+                wardLogService.getLogs(authentication.getName(), from, to, pageable));
     }
 
 
@@ -148,7 +159,7 @@ public class WardController {
      */
     @PostMapping("/me/emergency-log")
     public ResponseEntity<EmergencyLogResponse> addEmergencyLog(Authentication authentication) {
-        return ResponseEntity.ok(wardService.addEmergencyLog(authentication.getName()));
+        return ResponseEntity.ok(wardLogService.addEmergencyLog(authentication.getName()));
     }
 
 
@@ -160,7 +171,7 @@ public class WardController {
      */
     @GetMapping("/me/health")
     public ResponseEntity<HealthResponse> getHealth(Authentication authentication) {
-        return ResponseEntity.ok(wardService.getHealth(authentication.getName()));
+        return ResponseEntity.ok(wardHealthService.getHealth(authentication.getName()));
     }
 
     /**
@@ -170,7 +181,7 @@ public class WardController {
     public ResponseEntity<HealthResponse> putHealth(
             Authentication authentication,
             @Valid @RequestBody HealthPutRequest request) {
-        return ResponseEntity.ok(wardService.putHealth(authentication.getName(), request));
+        return ResponseEntity.ok(wardHealthService.putHealth(authentication.getName(), request));
     }
 
     /**
@@ -181,7 +192,7 @@ public class WardController {
     public ResponseEntity<HealthResponse> patchHealth(
             Authentication authentication,
             @Valid @RequestBody HealthPatchRequest request) {
-        return ResponseEntity.ok(wardService.patchHealth(authentication.getName(), request));
+        return ResponseEntity.ok(wardHealthService.patchHealth(authentication.getName(), request));
     }
 
     /**
@@ -190,7 +201,7 @@ public class WardController {
      */
     @DeleteMapping("/me/health")
     public ResponseEntity<Void> deleteHealth(Authentication authentication) {
-        wardService.deleteHealth(authentication.getName());
+        wardHealthService.deleteHealth(authentication.getName());
         return ResponseEntity.noContent().build();
     }
 
@@ -207,7 +218,7 @@ public class WardController {
             @RequestParam(defaultValue = "20") int size) {
         Pageable pageable = PageRequest.of(page, size);
         return ResponseEntity.ok(
-                wardService.getNotifications(authentication.getName(), pageable));
+                wardNotificationService.getNotifications(authentication.getName(), pageable));
     }
 
     /**
@@ -217,7 +228,7 @@ public class WardController {
     public ResponseEntity<Void> readNotification(
             Authentication authentication,
             @PathVariable Long notificationId) {
-        wardService.readNotification(authentication.getName(), notificationId);
+        wardNotificationService.readNotification(authentication.getName(), notificationId);
         return ResponseEntity.noContent().build();
     }
 
@@ -226,7 +237,7 @@ public class WardController {
      */
     @PatchMapping("/me/notifications/read-all")
     public ResponseEntity<Void> readAllNotifications(Authentication authentication) {
-        wardService.readAllNotifications(authentication.getName());
+        wardNotificationService.readAllNotifications(authentication.getName());
         return ResponseEntity.noContent().build();
     }
 
@@ -235,7 +246,7 @@ public class WardController {
      */
     @GetMapping("/me/notifications/unread-count")
     public ResponseEntity<UnreadCountResponse> getUnreadCount(Authentication authentication) {
-        return ResponseEntity.ok(wardService.getUnreadCount(authentication.getName()));
+        return ResponseEntity.ok(wardNotificationService.getUnreadCount(authentication.getName()));
     }
 
 }
