@@ -9,6 +9,7 @@ import com.example.cherry_be.domain.user.entity.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.example.cherry_be.global.auth.GuardianEmail;
 
 /**
  * 보호자가 보는 건강정보 (#26). [GET/PUT/PATCH/DELETE] /api/wards/me/health
@@ -25,25 +26,25 @@ public class WardHealthService {
     private final MemberHealthService memberHealthService;
 
     @Transactional(readOnly = true)
-    public HealthResponse getHealth(String oauthEmail) {
+    public HealthResponse getHealth(GuardianEmail oauthEmail) {
         return memberHealthService.get(wardFinder.getWard(oauthEmail));
     }
 
     @Transactional
-    public HealthResponse putHealth(String oauthEmail, HealthPutRequest request) {
+    public HealthResponse putHealth(GuardianEmail oauthEmail, HealthPutRequest request) {
         User guardian = wardFinder.getGuardian(oauthEmail);
         return memberHealthService.put(wardFinder.getWard(guardian), request, toActor(guardian));
     }
 
     @Transactional
-    public HealthResponse patchHealth(String oauthEmail, HealthPatchRequest request) {
+    public HealthResponse patchHealth(GuardianEmail oauthEmail, HealthPatchRequest request) {
         User guardian = wardFinder.getGuardian(oauthEmail);
         return memberHealthService.patch(wardFinder.getWard(guardian), request, toActor(guardian));
     }
 
     /** 값을 읽지 못하게 된 건강정보를 되돌리는 경로이기도 하다. */
     @Transactional
-    public void deleteHealth(String oauthEmail) {
+    public void deleteHealth(GuardianEmail oauthEmail) {
         memberHealthService.deleteByMember(wardFinder.getWard(oauthEmail));
     }
 

@@ -21,12 +21,13 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import com.example.cherry_be.global.auth.GuardianEmail;
 
 /** 보호자가 보는 사건 이력. */
 @ExtendWith(MockitoExtension.class)
 class WardLogServiceTest {
 
-    private static final String EMAIL = "guardian@example.com";
+    private static final GuardianEmail EMAIL = new GuardianEmail("guardian@example.com");
 
     @Mock private WardFinder wardFinder;
     @Mock private LogQueryService logQueryService;
@@ -40,7 +41,7 @@ class WardLogServiceTest {
     void setUp() {
         ward = Member.builder().name("김어르신").build();
         ReflectionTestUtils.setField(ward, "id", 10L);
-        lenient().when(wardFinder.getWard(anyString())).thenReturn(ward);
+        lenient().when(wardFinder.getWard(any(GuardianEmail.class))).thenReturn(ward);
     }
 
     @Test

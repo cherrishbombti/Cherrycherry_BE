@@ -18,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import com.example.cherry_be.global.auth.GuardianEmail;
 
 /**
  * 보호자 관점의 피보호자 등록과 현재 상태 조회.
@@ -46,7 +47,7 @@ public class WardService {
      * 기관이 보게 하려면 보호자가 별도로 기관번호를 입력해 연동한다(WardOrgLinkService).
      */
     @Transactional
-    public Long registerWard(String oauthEmail, WardRegisterRequest request) {
+    public Long registerWard(GuardianEmail oauthEmail, WardRegisterRequest request) {
         User guardian = wardFinder.getGuardian(oauthEmail);
 
         if (wardFinder.hasWard(guardian)) {
@@ -96,13 +97,13 @@ public class WardService {
 
     /** [GET] /api/wards/me/summary */
     @Transactional(readOnly = true)
-    public WardSummaryResponse getSummary(String oauthEmail) {
+    public WardSummaryResponse getSummary(GuardianEmail oauthEmail) {
         return WardSummaryResponse.from(wardFinder.getWard(oauthEmail));
     }
 
     /** [GET] /api/wards/me/sensors */
     @Transactional(readOnly = true)
-    public WardSensorResponse getSensors(String oauthEmail) {
+    public WardSensorResponse getSensors(GuardianEmail oauthEmail) {
         return WardSensorResponse.from(wardFinder.getWard(oauthEmail));
     }
 

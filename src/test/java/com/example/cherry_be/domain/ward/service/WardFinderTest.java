@@ -19,6 +19,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
+import com.example.cherry_be.global.auth.GuardianEmail;
 
 /**
  * "요청자 → 피보호자" 해석.
@@ -45,7 +46,7 @@ class WardFinderTest {
     void unknownUser() {
         when(userRepository.findByOauthEmail("ghost@example.com")).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> wardFinder.getGuardian("ghost@example.com"))
+        assertThatThrownBy(() -> wardFinder.getGuardian(new GuardianEmail("ghost@example.com")))
                 .isInstanceOf(CustomException.class)
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.USER_NOT_FOUND);
     }
@@ -56,7 +57,7 @@ class WardFinderTest {
         when(userRepository.findByOauthEmail(EMAIL)).thenReturn(Optional.of(guardian));
         when(memberRepository.findByUser(guardian)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> wardFinder.getWard(EMAIL))
+        assertThatThrownBy(() -> wardFinder.getWard(new GuardianEmail(EMAIL)))
                 .isInstanceOf(CustomException.class)
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.MEMBER_NOT_FOUND);
     }
@@ -68,7 +69,7 @@ class WardFinderTest {
         when(userRepository.findByOauthEmail(EMAIL)).thenReturn(Optional.of(guardian));
         when(memberRepository.findByUser(guardian)).thenReturn(Optional.of(ward));
 
-        assertThat(wardFinder.getWard(EMAIL)).isEqualTo(ward);
+        assertThat(wardFinder.getWard(new GuardianEmail(EMAIL))).isEqualTo(ward);
     }
 
     @Test

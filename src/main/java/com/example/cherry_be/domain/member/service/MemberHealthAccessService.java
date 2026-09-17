@@ -9,6 +9,7 @@ import com.example.cherry_be.domain.organization.entity.Organization;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.example.cherry_be.global.auth.OrgId;
 
 /**
  * 기관이 보는 건강정보 (#26). [GET/PUT/PATCH/DELETE] /api/targets/{targetId}/health
@@ -28,19 +29,19 @@ public class MemberHealthAccessService {
     private final MemberHealthService memberHealthService;
 
     @Transactional(readOnly = true)
-    public HealthResponse getHealth(String orgId, Long targetId) {
+    public HealthResponse getHealth(OrgId orgId, Long targetId) {
         return memberHealthService.get(memberFinder.getViewable(orgId, targetId));
     }
 
     @Transactional
-    public HealthResponse putHealth(String orgId, Long targetId, HealthPutRequest request) {
+    public HealthResponse putHealth(OrgId orgId, Long targetId, HealthPutRequest request) {
         Organization organization = memberFinder.getOrganization(orgId);
         return memberHealthService.put(
                 memberFinder.getManaged(organization, targetId), request, toActor(organization));
     }
 
     @Transactional
-    public HealthResponse patchHealth(String orgId, Long targetId, HealthPatchRequest request) {
+    public HealthResponse patchHealth(OrgId orgId, Long targetId, HealthPatchRequest request) {
         Organization organization = memberFinder.getOrganization(orgId);
         return memberHealthService.patch(
                 memberFinder.getManaged(organization, targetId), request, toActor(organization));
@@ -51,7 +52,7 @@ public class MemberHealthAccessService {
      * 값을 읽지 못하게 된 건강정보를 되돌리는 경로이기도 하다.
      */
     @Transactional
-    public void deleteHealth(String orgId, Long targetId) {
+    public void deleteHealth(OrgId orgId, Long targetId) {
         memberHealthService.deleteByMember(memberFinder.getManaged(orgId, targetId));
     }
 

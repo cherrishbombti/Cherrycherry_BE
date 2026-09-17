@@ -13,8 +13,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import com.example.cherry_be.global.auth.OrgId;
 
 @RestController // 이 클래스가 REST API 안내데스크 역할을 한다고 선언
 @RequestMapping("/api/org") // 이 컨트롤러의 기본 주소 설정
@@ -68,8 +68,7 @@ public class OrganizationController {
      * [GET] /api/org/me
      */
     @GetMapping("/me")
-    public ResponseEntity<OrgMeResponse> getMyInfo(Authentication authentication) {
-        String orgId = authentication.getName();
+    public ResponseEntity<OrgMeResponse> getMyInfo(OrgId orgId) {
         return ResponseEntity.ok(organizationService.getMyInfo(orgId));
     }
 
@@ -81,11 +80,11 @@ public class OrganizationController {
      */
     @GetMapping("/notifications")
     public ResponseEntity<NotificationPageResponse> getNotifications(
-            Authentication authentication,
+            OrgId orgId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         return ResponseEntity.ok(organizationService.getNotifications(
-                authentication.getName(), PageRequest.of(page, size)));
+                orgId, PageRequest.of(page, size)));
     }
 
     /**
@@ -93,9 +92,9 @@ public class OrganizationController {
      */
     @PatchMapping("/notifications/{notificationId}/read")
     public ResponseEntity<Void> readNotification(
-            Authentication authentication,
+            OrgId orgId,
             @PathVariable Long notificationId) {
-        organizationService.readNotification(authentication.getName(), notificationId);
+        organizationService.readNotification(orgId, notificationId);
         return ResponseEntity.noContent().build();
     }
 
@@ -103,8 +102,8 @@ public class OrganizationController {
      * [PATCH] /api/org/notifications/read-all — 전체 읽음 처리
      */
     @PatchMapping("/notifications/read-all")
-    public ResponseEntity<Void> readAllNotifications(Authentication authentication) {
-        organizationService.readAllNotifications(authentication.getName());
+    public ResponseEntity<Void> readAllNotifications(OrgId orgId) {
+        organizationService.readAllNotifications(orgId);
         return ResponseEntity.noContent().build();
     }
 

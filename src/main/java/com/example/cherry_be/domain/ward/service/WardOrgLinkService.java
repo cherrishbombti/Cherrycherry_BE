@@ -11,6 +11,7 @@ import com.example.cherry_be.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.example.cherry_be.global.auth.GuardianEmail;
 
 /**
  * 기관 연동 (#45). [GET/PATCH/DELETE] /api/wards/me/organization
@@ -27,7 +28,7 @@ public class WardOrgLinkService {
     private final WardOrgCodeAttemptLimiter orgCodeAttemptLimiter;
 
     @Transactional(readOnly = true)
-    public WardOrganizationResponse getOrganization(String oauthEmail) {
+    public WardOrganizationResponse getOrganization(GuardianEmail oauthEmail) {
         Member ward = wardFinder.getWard(oauthEmail);
         return ward.getOrganization() == null
                 ? WardOrganizationResponse.notLinked()
@@ -42,7 +43,7 @@ public class WardOrgLinkService {
      * 계정 기준으로 시도 횟수를 제한한다.
      */
     @Transactional
-    public WardOrganizationResponse linkOrganization(String oauthEmail, WardOrganizationRequest request) {
+    public WardOrganizationResponse linkOrganization(GuardianEmail oauthEmail, WardOrganizationRequest request) {
         User guardian = wardFinder.getGuardian(oauthEmail);
         Member ward = wardFinder.getWard(guardian);
 
@@ -61,7 +62,7 @@ public class WardOrgLinkService {
 
     /** 연동 해제. 연동돼 있지 않아도 오류로 보지 않는다(멱등). */
     @Transactional
-    public void unlinkOrganization(String oauthEmail) {
+    public void unlinkOrganization(GuardianEmail oauthEmail) {
         wardFinder.getWard(oauthEmail).unlinkOrganization();
     }
 }

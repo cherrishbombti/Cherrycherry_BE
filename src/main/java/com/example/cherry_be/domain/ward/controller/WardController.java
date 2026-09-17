@@ -18,11 +18,11 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
 import java.util.List;
+import com.example.cherry_be.global.auth.GuardianEmail;
 
 @RestController
 @RequestMapping("/api/wards")
@@ -43,10 +43,9 @@ public class WardController {
      */
     @PostMapping("/me")
     public ResponseEntity<String> registerWard(
-            Authentication authentication,
+            GuardianEmail guardian,
             @Valid @RequestBody WardRegisterRequest request) {
-        String oauthEmail = authentication.getName();
-        Long wardId = wardService.registerWard(oauthEmail, request);
+        Long wardId = wardService.registerWard(guardian, request);
         return ResponseEntity.ok("피보호자 등록 완료. ID: " + wardId);
     }
 
@@ -54,16 +53,16 @@ public class WardController {
      * [GET] /api/wards/me/summary — 홈 화면 요약 정보
      */
     @GetMapping("/me/summary")
-    public ResponseEntity<WardSummaryResponse> getSummary(Authentication authentication) {
-        return ResponseEntity.ok(wardService.getSummary(authentication.getName()));
+    public ResponseEntity<WardSummaryResponse> getSummary(GuardianEmail guardian) {
+        return ResponseEntity.ok(wardService.getSummary(guardian));
     }
 
     /**
      * [GET] /api/wards/me/sensors — 센서 상태 조회
      */
     @GetMapping("/me/sensors")
-    public ResponseEntity<WardSensorResponse> getSensors(Authentication authentication) {
-        return ResponseEntity.ok(wardService.getSensors(authentication.getName()));
+    public ResponseEntity<WardSensorResponse> getSensors(GuardianEmail guardian) {
+        return ResponseEntity.ok(wardService.getSensors(guardian));
     }
 
     // ── 기관 연동 (#45) ─────────────────────────────
@@ -73,8 +72,8 @@ public class WardController {
      * 연동 전이면 { "linked": false } 만 내려간다.
      */
     @GetMapping("/me/organization")
-    public ResponseEntity<WardOrganizationResponse> getOrganization(Authentication authentication) {
-        return ResponseEntity.ok(wardOrgLinkService.getOrganization(authentication.getName()));
+    public ResponseEntity<WardOrganizationResponse> getOrganization(GuardianEmail guardian) {
+        return ResponseEntity.ok(wardOrgLinkService.getOrganization(guardian));
     }
 
     /**
@@ -83,18 +82,18 @@ public class WardController {
      */
     @PatchMapping("/me/organization")
     public ResponseEntity<WardOrganizationResponse> linkOrganization(
-            Authentication authentication,
+            GuardianEmail guardian,
             @Valid @RequestBody WardOrganizationRequest request) {
         return ResponseEntity.ok(
-                wardOrgLinkService.linkOrganization(authentication.getName(), request));
+                wardOrgLinkService.linkOrganization(guardian, request));
     }
 
     /**
      * [DELETE] /api/wards/me/organization — 기관 연동 해제
      */
     @DeleteMapping("/me/organization")
-    public ResponseEntity<Void> unlinkOrganization(Authentication authentication) {
-        wardOrgLinkService.unlinkOrganization(authentication.getName());
+    public ResponseEntity<Void> unlinkOrganization(GuardianEmail guardian) {
+        wardOrgLinkService.unlinkOrganization(guardian);
         return ResponseEntity.noContent().build();
     }
 
@@ -102,8 +101,8 @@ public class WardController {
      * [GET] /api/wards/me/contacts — 비상연락망 목록 조회
      */
     @GetMapping("/me/contacts")
-    public ResponseEntity<List<WardContactResponse>> getContacts(Authentication authentication) {
-        return ResponseEntity.ok(wardContactService.getContacts(authentication.getName()));
+    public ResponseEntity<List<WardContactResponse>> getContacts(GuardianEmail guardian) {
+        return ResponseEntity.ok(wardContactService.getContacts(guardian));
     }
 
     /**
@@ -111,27 +110,27 @@ public class WardController {
      */
     @PostMapping("/me/contacts")
     public ResponseEntity<WardContactResponse> addContact(
-            Authentication authentication,
+            GuardianEmail guardian,
             @Valid @RequestBody WardContactRequest request) {
-        return ResponseEntity.ok(wardContactService.addContact(authentication.getName(), request));
+        return ResponseEntity.ok(wardContactService.addContact(guardian, request));
     }
 
     /** [PUT] /api/wards/me/contacts/{contactId} — 비상연락망 수정 */
     @PutMapping("/me/contacts/{contactId}")
     public ResponseEntity<WardContactResponse> updateContact(
-            Authentication authentication,
+            GuardianEmail guardian,
             @PathVariable Long contactId,
             @Valid @RequestBody WardContactRequest request) {
         return ResponseEntity.ok(
-                wardContactService.updateContact(authentication.getName(), contactId, request));
+                wardContactService.updateContact(guardian, contactId, request));
     }
 
     /** [DELETE] /api/wards/me/contacts/{contactId} — 비상연락망 삭제 */
     @DeleteMapping("/me/contacts/{contactId}")
     public ResponseEntity<Void> deleteContact(
-            Authentication authentication,
+            GuardianEmail guardian,
             @PathVariable Long contactId) {
-        wardContactService.deleteContact(authentication.getName(), contactId);
+        wardContactService.deleteContact(guardian, contactId);
         return ResponseEntity.noContent().build();
     }
 
@@ -141,7 +140,7 @@ public class WardController {
      */
     @GetMapping("/me/logs")
     public ResponseEntity<LogPageResponse> getLogs(
-            Authentication authentication,
+            GuardianEmail guardian,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
@@ -149,7 +148,7 @@ public class WardController {
 
         Pageable pageable = PageRequest.of(page, size);
         return ResponseEntity.ok(
-                wardLogService.getLogs(authentication.getName(), from, to, pageable));
+                wardLogService.getLogs(guardian, from, to, pageable));
     }
 
 
@@ -158,8 +157,8 @@ public class WardController {
      * 요청 본문 없음. 프론트는 응답을 기다리지 말고 즉시 통화를 실행할 것.
      */
     @PostMapping("/me/emergency-log")
-    public ResponseEntity<EmergencyLogResponse> addEmergencyLog(Authentication authentication) {
-        return ResponseEntity.ok(wardLogService.addEmergencyLog(authentication.getName()));
+    public ResponseEntity<EmergencyLogResponse> addEmergencyLog(GuardianEmail guardian) {
+        return ResponseEntity.ok(wardLogService.addEmergencyLog(guardian));
     }
 
 
@@ -170,8 +169,8 @@ public class WardController {
      * 아직 등록 전이면 빈 값이 담긴 200을 반환한다.
      */
     @GetMapping("/me/health")
-    public ResponseEntity<HealthResponse> getHealth(Authentication authentication) {
-        return ResponseEntity.ok(wardHealthService.getHealth(authentication.getName()));
+    public ResponseEntity<HealthResponse> getHealth(GuardianEmail guardian) {
+        return ResponseEntity.ok(wardHealthService.getHealth(guardian));
     }
 
     /**
@@ -179,9 +178,9 @@ public class WardController {
      */
     @PutMapping("/me/health")
     public ResponseEntity<HealthResponse> putHealth(
-            Authentication authentication,
+            GuardianEmail guardian,
             @Valid @RequestBody HealthPutRequest request) {
-        return ResponseEntity.ok(wardHealthService.putHealth(authentication.getName(), request));
+        return ResponseEntity.ok(wardHealthService.putHealth(guardian, request));
     }
 
     /**
@@ -190,9 +189,9 @@ public class WardController {
      */
     @PatchMapping("/me/health")
     public ResponseEntity<HealthResponse> patchHealth(
-            Authentication authentication,
+            GuardianEmail guardian,
             @Valid @RequestBody HealthPatchRequest request) {
-        return ResponseEntity.ok(wardHealthService.patchHealth(authentication.getName(), request));
+        return ResponseEntity.ok(wardHealthService.patchHealth(guardian, request));
     }
 
     /**
@@ -200,8 +199,8 @@ public class WardController {
      * 저장값을 읽지 못하게 된 경우의 복구 경로이기도 하다.
      */
     @DeleteMapping("/me/health")
-    public ResponseEntity<Void> deleteHealth(Authentication authentication) {
-        wardHealthService.deleteHealth(authentication.getName());
+    public ResponseEntity<Void> deleteHealth(GuardianEmail guardian) {
+        wardHealthService.deleteHealth(guardian);
         return ResponseEntity.noContent().build();
     }
 
@@ -213,12 +212,12 @@ public class WardController {
      */
     @GetMapping("/me/notifications")
     public ResponseEntity<NotificationPageResponse> getNotifications(
-            Authentication authentication,
+            GuardianEmail guardian,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         Pageable pageable = PageRequest.of(page, size);
         return ResponseEntity.ok(
-                wardNotificationService.getNotifications(authentication.getName(), pageable));
+                wardNotificationService.getNotifications(guardian, pageable));
     }
 
     /**
@@ -226,9 +225,9 @@ public class WardController {
      */
     @PatchMapping("/me/notifications/{notificationId}/read")
     public ResponseEntity<Void> readNotification(
-            Authentication authentication,
+            GuardianEmail guardian,
             @PathVariable Long notificationId) {
-        wardNotificationService.readNotification(authentication.getName(), notificationId);
+        wardNotificationService.readNotification(guardian, notificationId);
         return ResponseEntity.noContent().build();
     }
 
@@ -236,8 +235,8 @@ public class WardController {
      * [PATCH] /api/wards/me/notifications/read-all — 전체 읽음 처리
      */
     @PatchMapping("/me/notifications/read-all")
-    public ResponseEntity<Void> readAllNotifications(Authentication authentication) {
-        wardNotificationService.readAllNotifications(authentication.getName());
+    public ResponseEntity<Void> readAllNotifications(GuardianEmail guardian) {
+        wardNotificationService.readAllNotifications(guardian);
         return ResponseEntity.noContent().build();
     }
 
@@ -245,8 +244,8 @@ public class WardController {
      * [GET] /api/wards/me/notifications/unread-count — 미읽음 알림 개수 (배지용)
      */
     @GetMapping("/me/notifications/unread-count")
-    public ResponseEntity<UnreadCountResponse> getUnreadCount(Authentication authentication) {
-        return ResponseEntity.ok(wardNotificationService.getUnreadCount(authentication.getName()));
+    public ResponseEntity<UnreadCountResponse> getUnreadCount(GuardianEmail guardian) {
+        return ResponseEntity.ok(wardNotificationService.getUnreadCount(guardian));
     }
 
 }

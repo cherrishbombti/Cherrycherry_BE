@@ -31,12 +31,13 @@ import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import com.example.cherry_be.global.auth.OrgId;
 
 /** 기관의 피보호자 등록·삭제. 권한 해석 자체는 MemberFinderTest 가 본다. */
 @ExtendWith(MockitoExtension.class)
 class MemberServiceTest {
 
-    private static final String ORG_ID = "org01";
+    private static final OrgId ORG_ID = new OrgId("org01");
 
     @Mock private MemberFinder memberFinder;
     @Mock private MemberRepository memberRepository;
@@ -51,7 +52,7 @@ class MemberServiceTest {
 
     @BeforeEach
     void setUp() {
-        myOrg = Organization.builder().orgId(ORG_ID).name("복지관").password("x").build();
+        myOrg = Organization.builder().orgId(ORG_ID.value()).name("복지관").password("x").build();
         ReflectionTestUtils.setField(myOrg, "id", 1L);
         lenient().when(memberFinder.getOrganization(ORG_ID)).thenReturn(myOrg);
     }
@@ -105,7 +106,7 @@ class MemberServiceTest {
     @Test
     @DisplayName("삭제는 관리 권한을 거친다 — 권한이 없으면 지우지 않는다")
     void deleteGoesThroughManagePermission() {
-        when(memberFinder.getManaged(anyString(), anyLong()))
+        when(memberFinder.getManaged(any(OrgId.class), anyLong()))
                 .thenThrow(new CustomException(ErrorCode.MEMBER_NOT_FOUND));
 
         assertThatThrownBy(() -> memberService.deleteMember(ORG_ID, 10L))

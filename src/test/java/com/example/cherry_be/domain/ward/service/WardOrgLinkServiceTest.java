@@ -23,17 +23,19 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import com.example.cherry_be.global.auth.GuardianEmail;
 
 /** 기관 연동. 연동해도 소유자는 보호자로 남아야 한다. */
 @ExtendWith(MockitoExtension.class)
 class WardOrgLinkServiceTest {
 
-    private static final String EMAIL = "guardian@example.com";
+    private static final GuardianEmail EMAIL = new GuardianEmail("guardian@example.com");
 
     @Mock private WardFinder wardFinder;
     @Mock private OrganizationRepository organizationRepository;
@@ -48,12 +50,12 @@ class WardOrgLinkServiceTest {
     @BeforeEach
     void setUp() {
         guardian = User.builder()
-                .id(1L).oauthEmail(EMAIL).name("보호자")
+                .id(1L).oauthEmail(EMAIL.value()).name("보호자")
                 .oauthProvider(SocialLoginType.GOOGLE).build();
         ward = Member.builder().user(guardian).name("김어르신").build();
         lenient().when(wardFinder.getGuardian(EMAIL)).thenReturn(guardian);
         lenient().when(wardFinder.getWard(guardian)).thenReturn(ward);
-        lenient().when(wardFinder.getWard(anyString())).thenReturn(ward);
+        lenient().when(wardFinder.getWard(any(GuardianEmail.class))).thenReturn(ward);
     }
 
     private WardOrganizationRequest request() throws Exception {

@@ -24,6 +24,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
+import com.example.cherry_be.global.auth.OrgId;
 
 /**
  * 기관의 두 겹 권한 해석.
@@ -78,7 +79,7 @@ class MemberFinderTest {
         void unknownOrg() {
             when(organizationRepository.findByOrgId("ghost")).thenReturn(Optional.empty());
 
-            assertThatThrownBy(() -> memberFinder.getViewable("ghost", 10L))
+            assertThatThrownBy(() -> memberFinder.getViewable(new OrgId("ghost"), 10L))
                     .isInstanceOf(CustomException.class)
                     .hasFieldOrPropertyWithValue("errorCode", ErrorCode.ORG_NOT_FOUND);
         }
@@ -88,7 +89,7 @@ class MemberFinderTest {
         void unknownMember() {
             when(memberRepository.findById(404L)).thenReturn(Optional.empty());
 
-            assertThatThrownBy(() -> memberFinder.getViewable(ORG_ID, 404L))
+            assertThatThrownBy(() -> memberFinder.getViewable(new OrgId(ORG_ID), 404L))
                     .isInstanceOf(CustomException.class)
                     .hasFieldOrPropertyWithValue("errorCode", ErrorCode.MEMBER_NOT_FOUND);
         }
@@ -98,7 +99,7 @@ class MemberFinderTest {
         void otherOrgMemberIsNotFound() {
             when(memberRepository.findById(10L)).thenReturn(Optional.of(memberOf(otherOrg, null)));
 
-            assertThatThrownBy(() -> memberFinder.getViewable(ORG_ID, 10L))
+            assertThatThrownBy(() -> memberFinder.getViewable(new OrgId(ORG_ID), 10L))
                     .isInstanceOf(CustomException.class)
                     .hasFieldOrPropertyWithValue("errorCode", ErrorCode.MEMBER_NOT_FOUND);
         }
@@ -108,7 +109,7 @@ class MemberFinderTest {
         void unlinkedMemberIsNotFound() {
             when(memberRepository.findById(10L)).thenReturn(Optional.of(memberOf(null, guardian)));
 
-            assertThatThrownBy(() -> memberFinder.getViewable(ORG_ID, 10L))
+            assertThatThrownBy(() -> memberFinder.getViewable(new OrgId(ORG_ID), 10L))
                     .isInstanceOf(CustomException.class)
                     .hasFieldOrPropertyWithValue("errorCode", ErrorCode.MEMBER_NOT_FOUND);
         }
@@ -119,7 +120,7 @@ class MemberFinderTest {
             Member linked = memberOf(myOrg, guardian);
             when(memberRepository.findById(10L)).thenReturn(Optional.of(linked));
 
-            assertThat(memberFinder.getViewable(ORG_ID, 10L)).isEqualTo(linked);
+            assertThat(memberFinder.getViewable(new OrgId(ORG_ID), 10L)).isEqualTo(linked);
         }
     }
 
@@ -132,7 +133,7 @@ class MemberFinderTest {
         void guardianOwnedIsNotManageable() {
             when(memberRepository.findById(10L)).thenReturn(Optional.of(memberOf(myOrg, guardian)));
 
-            assertThatThrownBy(() -> memberFinder.getManaged(ORG_ID, 10L))
+            assertThatThrownBy(() -> memberFinder.getManaged(new OrgId(ORG_ID), 10L))
                     .isInstanceOf(CustomException.class)
                     .hasFieldOrPropertyWithValue("errorCode", ErrorCode.MEMBER_NOT_FOUND);
         }
@@ -143,7 +144,7 @@ class MemberFinderTest {
             Member orgOwned = memberOf(myOrg, null);
             when(memberRepository.findById(10L)).thenReturn(Optional.of(orgOwned));
 
-            assertThat(memberFinder.getManaged(ORG_ID, 10L)).isEqualTo(orgOwned);
+            assertThat(memberFinder.getManaged(new OrgId(ORG_ID), 10L)).isEqualTo(orgOwned);
         }
     }
 }

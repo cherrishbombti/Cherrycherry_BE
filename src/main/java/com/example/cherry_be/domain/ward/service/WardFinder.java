@@ -8,6 +8,7 @@ import com.example.cherry_be.global.exception.CustomException;
 import com.example.cherry_be.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
+import com.example.cherry_be.global.auth.GuardianEmail;
 
 /**
  * "요청한 보호자는 누구이고, 그의 피보호자는 누구인가" 를 해석한다.
@@ -24,8 +25,8 @@ public class WardFinder {
     private final MemberRepository memberRepository;
 
     /** JWT 의 subject(이메일)로 보호자를 찾는다. */
-    public User getGuardian(String oauthEmail) {
-        return userRepository.findByOauthEmail(oauthEmail)
+    public User getGuardian(GuardianEmail oauthEmail) {
+        return userRepository.findByOauthEmail(oauthEmail.value())
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
     }
 
@@ -36,7 +37,7 @@ public class WardFinder {
     }
 
     /** 이메일 한 번으로 피보호자까지. 보호자 자체가 필요 없는 호출부가 쓴다. */
-    public Member getWard(String oauthEmail) {
+    public Member getWard(GuardianEmail oauthEmail) {
         return getWard(getGuardian(oauthEmail));
     }
 

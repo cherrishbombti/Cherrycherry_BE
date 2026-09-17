@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.example.cherry_be.global.auth.GuardianEmail;
 
 /**
  * 보호자 알림함 (#25). [GET/PATCH] /api/wards/me/notifications
@@ -22,22 +23,22 @@ public class WardNotificationService {
     private final NotificationService notificationService;
 
     @Transactional(readOnly = true)
-    public NotificationPageResponse getNotifications(String oauthEmail, Pageable pageable) {
+    public NotificationPageResponse getNotifications(GuardianEmail oauthEmail, Pageable pageable) {
         return notificationService.getNotifications(wardFinder.getGuardian(oauthEmail), pageable);
     }
 
     @Transactional
-    public void readNotification(String oauthEmail, Long notificationId) {
+    public void readNotification(GuardianEmail oauthEmail, Long notificationId) {
         notificationService.markAsRead(wardFinder.getGuardian(oauthEmail), notificationId);
     }
 
     @Transactional
-    public int readAllNotifications(String oauthEmail) {
+    public int readAllNotifications(GuardianEmail oauthEmail) {
         return notificationService.markAllAsRead(wardFinder.getGuardian(oauthEmail));
     }
 
     @Transactional(readOnly = true)
-    public UnreadCountResponse getUnreadCount(String oauthEmail) {
+    public UnreadCountResponse getUnreadCount(GuardianEmail oauthEmail) {
         return new UnreadCountResponse(
                 notificationService.getUnreadCount(wardFinder.getGuardian(oauthEmail)));
     }

@@ -28,12 +28,13 @@ import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import com.example.cherry_be.global.auth.GuardianEmail;
 
 /** 피보호자 등록과 현재 상태 조회. */
 @ExtendWith(MockitoExtension.class)
 class WardServiceTest {
 
-    private static final String EMAIL = "guardian@example.com";
+    private static final GuardianEmail EMAIL = new GuardianEmail("guardian@example.com");
 
     @Mock private WardFinder wardFinder;
     @Mock private MemberRepository memberRepository;
@@ -52,7 +53,7 @@ class WardServiceTest {
     @BeforeEach
     void setUp() {
         guardian = User.builder()
-                .id(1L).oauthEmail(EMAIL).name("보호자")
+                .id(1L).oauthEmail(EMAIL.value()).name("보호자")
                 .oauthProvider(SocialLoginType.GOOGLE).build();
         lenient().when(wardFinder.getGuardian(EMAIL)).thenReturn(guardian);
     }

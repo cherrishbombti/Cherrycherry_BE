@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import com.example.cherry_be.global.auth.GuardianEmail;
 
 /**
  * 보호자가 보는 사건 이력 (#22, #24).
@@ -27,7 +28,7 @@ public class WardLogService {
     private final LogRepository logRepository;
 
     @Transactional(readOnly = true)
-    public LogPageResponse getLogs(String oauthEmail, LocalDate from, LocalDate to, Pageable pageable) {
+    public LogPageResponse getLogs(GuardianEmail oauthEmail, LocalDate from, LocalDate to, Pageable pageable) {
         return logQueryService.getLogs(wardFinder.getWard(oauthEmail), from, to, pageable);
     }
 
@@ -39,7 +40,7 @@ public class WardLogService {
      * 여기서 실패하더라도 통화 흐름에는 영향이 없어야 한다.
      */
     @Transactional
-    public EmergencyLogResponse addEmergencyLog(String oauthEmail) {
+    public EmergencyLogResponse addEmergencyLog(GuardianEmail oauthEmail) {
         Member ward = wardFinder.getWard(oauthEmail);
 
         Log log = logRepository.save(Log.builder()

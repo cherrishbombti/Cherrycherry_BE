@@ -9,6 +9,7 @@ import com.example.cherry_be.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+import com.example.cherry_be.global.auth.OrgId;
 
 /**
  * "요청한 기관은 어디이고, 그 기관이 이 피보호자에 무엇을 할 수 있는가" 를 해석한다.
@@ -33,16 +34,16 @@ public class MemberFinder {
     private final OrganizationRepository organizationRepository;
 
     /** JWT 의 subject(기관 ID)로 기관을 찾는다. */
-    public Organization getOrganization(String orgId) {
-        return organizationRepository.findByOrgId(orgId)
+    public Organization getOrganization(OrgId orgId) {
+        return organizationRepository.findByOrgId(orgId.value())
                 .orElseThrow(() -> new CustomException(ErrorCode.ORG_NOT_FOUND));
     }
 
-    public Member getViewable(String orgId, Long targetId) {
+    public Member getViewable(OrgId orgId, Long targetId) {
         return getViewable(getOrganization(orgId), targetId);
     }
 
-    public Member getManaged(String orgId, Long targetId) {
+    public Member getManaged(OrgId orgId, Long targetId) {
         return getManaged(getOrganization(orgId), targetId);
     }
 

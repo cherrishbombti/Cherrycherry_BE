@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.stream.Collectors;
+import com.example.cherry_be.global.auth.GuardianEmail;
 
 /**
  * 비상연락망. [GET/POST/PUT/DELETE] /api/wards/me/contacts
@@ -28,7 +29,7 @@ public class WardContactService {
     private final EmergencyContactRepository emergencyContactRepository;
 
     @Transactional(readOnly = true)
-    public List<WardContactResponse> getContacts(String oauthEmail) {
+    public List<WardContactResponse> getContacts(GuardianEmail oauthEmail) {
         Member ward = wardFinder.getWard(oauthEmail);
         return emergencyContactRepository.findByMemberOrderByPriorityAsc(ward).stream()
                 .map(WardContactResponse::from)
@@ -36,7 +37,7 @@ public class WardContactService {
     }
 
     @Transactional
-    public WardContactResponse addContact(String oauthEmail, WardContactRequest request) {
+    public WardContactResponse addContact(GuardianEmail oauthEmail, WardContactRequest request) {
         Member ward = wardFinder.getWard(oauthEmail);
 
         if (emergencyContactRepository.countByMember(ward) >= MAX_CONTACTS) {
@@ -61,7 +62,7 @@ public class WardContactService {
     }
 
     @Transactional
-    public WardContactResponse updateContact(String oauthEmail, Long contactId, WardContactRequest request) {
+    public WardContactResponse updateContact(GuardianEmail oauthEmail, Long contactId, WardContactRequest request) {
         EmergencyContact contact = getOwnedContact(wardFinder.getWard(oauthEmail), contactId);
         contact.update(request.getName(),
                 PhoneNumberUtils.normalize(request.getPhone()),
@@ -70,7 +71,7 @@ public class WardContactService {
     }
 
     @Transactional
-    public void deleteContact(String oauthEmail, Long contactId) {
+    public void deleteContact(GuardianEmail oauthEmail, Long contactId) {
         emergencyContactRepository.delete(getOwnedContact(wardFinder.getWard(oauthEmail), contactId));
     }
 

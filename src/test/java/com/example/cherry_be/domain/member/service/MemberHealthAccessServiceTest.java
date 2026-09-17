@@ -26,6 +26,7 @@ import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import com.example.cherry_be.global.auth.OrgId;
 
 /**
  * 기관이 보는 건강정보.
@@ -36,7 +37,7 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class MemberHealthAccessServiceTest {
 
-    private static final String ORG_ID = "org01";
+    private static final OrgId ORG_ID = new OrgId("org01");
 
     @Mock private MemberFinder memberFinder;
     @Mock private MemberHealthService memberHealthService;
@@ -49,7 +50,7 @@ class MemberHealthAccessServiceTest {
 
     @BeforeEach
     void setUp() {
-        myOrg = Organization.builder().orgId(ORG_ID).name("복지관").password("x").build();
+        myOrg = Organization.builder().orgId(ORG_ID.value()).name("복지관").password("x").build();
         ReflectionTestUtils.setField(myOrg, "id", 1L);
         member = Member.builder().organization(myOrg).name("무연고자").build();
         ReflectionTestUtils.setField(member, "id", 10L);

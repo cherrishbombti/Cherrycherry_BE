@@ -20,6 +20,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import com.example.cherry_be.global.auth.OrgId;
 
 /**
  * 기관(사회복지사) 관점의 피보호자 등록·목록·상세·삭제.
@@ -49,7 +50,7 @@ public class MemberService {
      * 기관이 수정·삭제까지 할 수 있다.
      */
     @Transactional
-    public Long registerMember(String orgId, MemberRegisterRequest request) {
+    public Long registerMember(OrgId orgId, MemberRegisterRequest request) {
         if (memberRepository.findByDeviceMac(request.getDeviceMac()).isPresent()) {
             throw new CustomException(ErrorCode.DEVICE_ALREADY_EXISTS);
         }
@@ -72,7 +73,7 @@ public class MemberService {
      * [GET] /api/targets
      */
     @Transactional(readOnly = true)
-    public MemberSummaryResponse getTargets(String orgId) {
+    public MemberSummaryResponse getTargets(OrgId orgId) {
         return new MemberSummaryResponse(
                 memberRepository.findByOrganization(memberFinder.getOrganization(orgId)));
     }
@@ -82,7 +83,7 @@ public class MemberService {
      * [GET] /api/targets/emergencies
      */
     @Transactional(readOnly = true)
-    public List<MemberSummaryResponse.MemberInfo> getEmergencies(String orgId) {
+    public List<MemberSummaryResponse.MemberInfo> getEmergencies(OrgId orgId) {
         return memberRepository
                 .findByOrganizationAndStatus(memberFinder.getOrganization(orgId), MemberStatus.DANGER)
                 .stream()
@@ -95,7 +96,7 @@ public class MemberService {
      * [GET] /api/targets/{targetId}
      */
     @Transactional(readOnly = true)
-    public MemberDetailResponse getTargetDetail(String orgId, Long targetId) {
+    public MemberDetailResponse getTargetDetail(OrgId orgId, Long targetId) {
         Member member = memberFinder.getViewable(orgId, targetId);
 
         List<WardContactResponse> contacts =
@@ -118,7 +119,7 @@ public class MemberService {
      * 남겨두면 member_id NOT NULL FK 에 걸려 삭제 자체가 409 로 실패한다.
      */
     @Transactional
-    public void deleteMember(String orgId, Long targetId) {
+    public void deleteMember(OrgId orgId, Long targetId) {
         Member member = memberFinder.getManaged(orgId, targetId);
 
         notificationService.deleteByMember(member);
