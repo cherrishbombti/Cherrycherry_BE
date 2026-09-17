@@ -7,6 +7,8 @@ import com.example.cherry_be.domain.log.dto.LogPageResponse;
 import com.example.cherry_be.domain.member.dto.MemberDetailResponse;
 import com.example.cherry_be.domain.member.dto.MemberRegisterRequest;
 import com.example.cherry_be.domain.member.dto.MemberSummaryResponse;
+import com.example.cherry_be.domain.member.service.MemberHealthAccessService;
+import com.example.cherry_be.domain.member.service.MemberLogService;
 import com.example.cherry_be.domain.member.service.MemberService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -25,7 +27,10 @@ import java.util.List;
 @RequiredArgsConstructor
 public class MemberController {
 
-    private final MemberService memberService;
+    // 기관 API 는 관심사별로 서비스가 나뉘어 있다.
+    private final MemberService memberService;                            // 등록·목록·상세·삭제
+    private final MemberLogService memberLogService;                      // 사건 이력
+    private final MemberHealthAccessService memberHealthAccessService;    // 건강정보
 
     /**
      * 피보호자 등록
@@ -102,7 +107,7 @@ public class MemberController {
 
         Pageable pageable = PageRequest.of(page, size);
         return ResponseEntity.ok(
-                memberService.getLogs(authentication.getName(), targetId, from, to, pageable));
+                memberLogService.getLogs(authentication.getName(), targetId, from, to, pageable));
     }
 
 
@@ -115,7 +120,7 @@ public class MemberController {
             Authentication authentication,
             @PathVariable Long targetId) {
         return ResponseEntity.ok(
-                memberService.getHealth(authentication.getName(), targetId));
+                memberHealthAccessService.getHealth(authentication.getName(), targetId));
     }
 
 
@@ -129,7 +134,7 @@ public class MemberController {
             @PathVariable Long targetId,
             @Valid @RequestBody HealthPutRequest request) {
         return ResponseEntity.ok(
-                memberService.putHealth(authentication.getName(), targetId, request));
+                memberHealthAccessService.putHealth(authentication.getName(), targetId, request));
     }
 
     /**
@@ -142,7 +147,7 @@ public class MemberController {
             @PathVariable Long targetId,
             @Valid @RequestBody HealthPatchRequest request) {
         return ResponseEntity.ok(
-                memberService.patchHealth(authentication.getName(), targetId, request));
+                memberHealthAccessService.patchHealth(authentication.getName(), targetId, request));
     }
 
     /**
@@ -153,7 +158,7 @@ public class MemberController {
     public ResponseEntity<Void> deleteTargetHealth(
             Authentication authentication,
             @PathVariable Long targetId) {
-        memberService.deleteHealth(authentication.getName(), targetId);
+        memberHealthAccessService.deleteHealth(authentication.getName(), targetId);
         return ResponseEntity.noContent().build();
     }
 }
