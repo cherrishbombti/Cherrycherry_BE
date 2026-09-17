@@ -44,12 +44,15 @@ public class DeviceService {
         MemberStatus newStatus = resolveStatus(request, member, isEvent);
 
         // 3. 센서 상태 OK/FAIL/UNKNOWN → Boolean(true/false/null)
+        // sensor_health 블록이 통째로 없으면 "이번엔 보고하지 않음"이므로 마지막 값을 유지한다.
+        // 블록이 있는데 UNKNOWN 이면 기기가 "판단 불가"를 보고한 것이므로 null 로 덮어쓴다.
+        // 둘을 구분하지 않으면 sensor_health 없는 payload 한 건에 마지막으로 알던 고장이 지워진다.
         DeviceDataRequest.SensorHealth sh = request.getSensorHealth();
-        Boolean vibrator = toBool(sh == null ? null : sh.getVibrator());
-        Boolean radar = toBool(sh == null ? null : sh.getRadar());
-        Boolean thermal = toBool(sh == null ? null : sh.getThermal());
+        Boolean vibrator = sh == null ? member.getVibrator() : toBool(sh.getVibrator());
+        Boolean radar = sh == null ? member.getRadar() : toBool(sh.getRadar());
+        Boolean thermal = sh == null ? member.getThermal() : toBool(sh.getThermal());
 
-        // 4. EVENT일 때만 로그·알림 적재 (HEARTBEAT은 상태 갱신만 → DB 행 안 쌓임)
+        // 4. 상태 변화 로그·알림 적재 (EVENT 에서만. HEARTBEAT 은 상태 갱신만 → DB 행 안 쌓임)
         if (isEvent) {
             MemberStatus previousStatus = member.getStatus();
             if (previousStatus != newStatus) {
@@ -65,15 +68,20 @@ public class DeviceService {
                     notificationService.create(member, fallLog, toNotificationType(newStatus));
                 }
             }
-            saveSensorFailureLogs(member, newStatus, vibrator, radar, thermal);
         }
 
-        // 5. 배터리·신호 (device 블록 없으면 null → 기존 값 유지)
+        // 5. 센서 고장 감시는 report_type 과 무관하게 항상 수행한다.
+        // sensor_health 는 HEARTBEAT 에도 매번 실려 오는데 EVENT 일 때만 보면,
+        // 센서가 고장난 채 낙상이 일어나지 않는 구간을 아무도 모르게 된다.
+        // (기기 단절을 감지하지 못하는 것과 같은 종류의 구멍이다)
+        saveSensorFailureLogs(member, newStatus, vibrator, radar, thermal);
+
+        // 6. 배터리·신호 (device 블록 없으면 null → 기존 값 유지)
         Integer batteryPct = request.getDevice() == null ? null : request.getDevice().getBatteryPct();
         Integer rssi = request.getDevice() == null ? null : request.getDevice().getRssi();
         validateDeviceMetrics(batteryPct, rssi);
 
-        // 6. member_info 최신 상태 업데이트 (항상 실행)
+        // 7. member_info 최신 상태 업데이트 (항상 실행)
         member.updateFromDevice(newStatus, vibrator, radar, thermal, batteryPct, rssi);
     }
 
@@ -130,17 +138,34 @@ public class DeviceService {
         return null;
     }
 
+    /**
+     * 센서 고장 로그를 남긴다. "고장이 아니던 상태 → 고장" 으로 넘어가는 순간에만 1회.
+     *
+     * 고장이 지속되는 동안 매 수신마다 남기면 하트비트가 5초 간격이라
+     * 센서 하나가 하루 17,000행이 된다. EVENT 재전송(같은 seq 로 최대 4회)도 그대로 중복된다.
+     * 상태 전이에서만 남기는 것은 알림 억제(위 4번)와 같은 원리다.
+     *
+     * 직전 값은 Member 에 저장된 센서 상태이므로 반드시 updateFromDevice 이전에 호출해야 한다.
+     */
     private void saveSensorFailureLogs(Member member, MemberStatus status,
                                        Boolean vibrator, Boolean radar, Boolean thermal) {
-        if (Boolean.FALSE.equals(vibrator)) {
+        if (isNewFailure(member.getVibrator(), vibrator)) {
             saveSensorFailure(member, status, "vibrator");
         }
-        if (Boolean.FALSE.equals(radar)) {
+        if (isNewFailure(member.getRadar(), radar)) {
             saveSensorFailure(member, status, "radar");
         }
-        if (Boolean.FALSE.equals(thermal)) {
+        if (isNewFailure(member.getThermal(), thermal)) {
             saveSensorFailure(member, status, "thermal");
         }
+    }
+
+    /**
+     * 이번 수신에서 새로 고장난 센서인지 판단한다.
+     * 정상(true)·미수신(null) → 고장(false) 만 true. 고장 지속(false → false)은 false.
+     */
+    private boolean isNewFailure(Boolean previous, Boolean current) {
+        return Boolean.FALSE.equals(current) && !Boolean.FALSE.equals(previous);
     }
 
     private void saveSensorFailure(Member member, MemberStatus status, String sensor) {
