@@ -1,0 +1,25 @@
+2026-09-17T15:10:13.418+09:00  INFO 75768 --- [           main] com.example.cherry_be.Application        : Started Application in 2.322 seconds (process running for 2.458)
+2026-09-17T15:10:53.598+09:00  INFO 75768 --- [   scheduling-1] c.e.c.d.d.service.DeviceOfflineService   : 기기 끊김 감지 - memberId: 1, deviceMac: AA:BB:CC:00:11:22, 마지막 수신: 2026-09-17T15:10:46.867183
+2026-09-17T15:10:53.603+09:00  INFO 75768 --- [   scheduling-1] c.e.c.d.d.s.DeviceOfflineScheduler       : 기기 끊김 알림 1건 발송
+2026-09-17T15:10:53.622+09:00  INFO 75768 --- [         push-2] c.e.c.d.p.s.PushNotificationService      : 등록된 기기가 없어 푸시를 건너뜁니다 - notificationId: 20, userId: null, organizationId: 2
+2026-09-17T15:10:53.622+09:00  INFO 75768 --- [         push-1] c.e.c.d.p.s.PushNotificationService      : 등록된 기기가 없어 푸시를 건너뜁니다 - notificationId: 19, userId: 1, organizationId: null
+2026-09-17T15:11:38.699+09:00  INFO 75768 --- [   scheduling-1] c.e.c.d.d.service.DeviceOfflineService   : 기기 끊김 감지 - memberId: 1, deviceMac: AA:BB:CC:00:11:22, 마지막 수신: 2026-09-17T15:11:31.886965
+2026-09-17T15:11:38.704+09:00  INFO 75768 --- [   scheduling-1] c.e.c.d.d.s.DeviceOfflineScheduler       : 기기 끊김 알림 1건 발송
+2026-09-17T15:11:38.707+09:00  INFO 75768 --- [         push-1] c.e.c.d.p.s.PushNotificationService      : 등록된 기기가 없어 푸시를 건너뜁니다 - notificationId: 22, userId: null, organizationId: 2
+2026-09-17T15:11:38.707+09:00  INFO 75768 --- [         push-2] c.e.c.d.p.s.PushNotificationService      : 등록된 기기가 없어 푸시를 건너뜁니다 - notificationId: 21, userId: 1, organizationId: null
+2026-09-17T15:11:58.757+09:00  INFO 75768 --- [   scheduling-1] c.e.c.d.d.service.DeviceOfflineService   : 기기 끊김 감지 - memberId: 1, deviceMac: AA:BB:CC:00:11:22, 마지막 수신: 2026-09-17T15:11:51.302970
+2026-09-17T15:11:58.762+09:00  INFO 75768 --- [   scheduling-1] c.e.c.d.d.s.DeviceOfflineScheduler       : 기기 끊김 알림 1건 발송
+2026-09-17T15:11:58.763+09:00  INFO 75768 --- [         push-1] c.e.c.d.p.s.PushNotificationService      : 등록된 기기가 없어 푸시를 건너뜁니다 - notificationId: 24, userId: null, organizationId: 2
+2026-09-17T15:11:58.763+09:00  INFO 75768 --- [         push-2] c.e.c.d.p.s.PushNotificationService      : 등록된 기기가 없어 푸시를 건너뜁니다 - notificationId: 23, userId: 1, organizationId: null
+2026-09-17T15:12:08.796+09:00  INFO 75768 --- [   scheduling-1] c.e.c.d.d.service.DeviceOfflineService   : 기기 끊김 감지 - memberId: 1, deviceMac: AA:BB:CC:00:11:22, 마지막 수신: 2026-09-17T15:12:01.541854
+2026-09-17T15:12:08.800+09:00  INFO 75768 --- [   scheduling-1] c.e.c.d.d.s.DeviceOfflineScheduler       : 기기 끊김 알림 1건 발송
+2026-09-17T15:12:08.802+09:00  INFO 75768 --- [         push-1] c.e.c.d.p.s.PushNotificationService      : 등록된 기기가 없어 푸시를 건너뜁니다 - notificationId: 25, userId: 1, organizationId: null
+2026-09-17T15:12:08.802+09:00  INFO 75768 --- [         push-2] c.e.c.d.p.s.PushNotificationService      : 등록된 기기가 없어 푸시를 건너뜁니다 - notificationId: 26, userId: null, organizationId: 2
+2026-09-17T15:12:28.856+09:00  INFO 75768 --- [   scheduling-1] c.e.c.d.d.service.DeviceOfflineService   : 기기 끊김 감지 - memberId: 1, deviceMac: AA:BB:CC:00:11:22, 마지막 수신: 2026-09-17T15:12:21.961595
+2026-09-17T15:12:28.861+09:00  INFO 75768 --- [   scheduling-1] c.e.c.d.d.s.DeviceOfflineScheduler       : 기기 끊김 알림 1건 발송
+2026-09-17T15:12:28.865+09:00  INFO 75768 --- [         push-1] c.e.c.d.p.s.PushNotificationService      : 등록된 기기가 없어 푸시를 건너뜁니다 - notificationId: 27, userId: 1, organizationId: null
+2026-09-17T15:12:28.865+09:00  INFO 75768 --- [         push-2] c.e.c.d.p.s.PushNotificationService      : 등록된 기기가 없어 푸시를 건너뜁니다 - notificationId: 28, userId: null, organizationId: 2
+2026-09-17T15:12:48.917+09:00  INFO 75768 --- [   scheduling-1] c.e.c.d.d.service.DeviceOfflineService   : 기기 끊김 감지 - memberId: 1, deviceMac: AA:BB:CC:00:11:22, 마지막 수신: 2026-09-17T15:12:41.400599
+2026-09-17T15:12:48.920+09:00  INFO 75768 --- [   scheduling-1] c.e.c.d.d.s.DeviceOfflineScheduler       : 기기 끊김 알림 1건 발송
+2026-09-17T15:12:48.923+09:00  INFO 75768 --- [         push-1] c.e.c.d.p.s.PushNotificationService      : 등록된 기기가 없어 푸시를 건너뜁니다 - notificationId: 30, userId: null, organizationId: 2
+2026-09-17T15:12:48.923+09:00  INFO 75768 --- [         push-2] c.e.c.d.p.s.PushNotificationService      : 등록된 기기가 없어 푸시를 건너뜁니다 - notificationId: 29, userId: 1, organizationId: null
