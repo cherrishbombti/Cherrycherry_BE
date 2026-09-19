@@ -191,3 +191,10 @@ secrets/
 secrets/
 *firebase-adminsdk*.json
 *service-account*.json
+
+# 실험 원시 로그는 논문 4장 수치의 근거라 예외로 둔다 (*.log 에 걸리므로)
+!docs/experiment-logs/**/*.log
+
+# 논문 본문은 마크다운으로 관리한다. 변환본(.docx)은 diff 가 보이지 않고
+# 고칠 때마다 전체가 새로 쌓이므로 추적하지 않는다.
+docs/**/*.docx
