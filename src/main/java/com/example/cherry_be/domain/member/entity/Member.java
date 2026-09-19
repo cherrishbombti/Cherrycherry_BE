@@ -20,8 +20,15 @@ import java.time.LocalDateTime;
 @Table(name = "member_info")
 public class Member {
 
-    // 온라인 판정 기준 (분) - 협의 후 조정 가능
-    private static final long ONLINE_THRESHOLD_MINUTES = 5;
+    // 온라인 판정 기준 (초)
+    //
+    // 기기는 5초마다 하트비트를 보내고, 하트비트는 전송에 실패해도 재시도하지 않는다.
+    // (재시도는 EVENT 에만 있다) 따라서 한두 개가 유실되는 것은 정상 동작이며,
+    // 4개 연속 누락(20초)을 끊김으로 본다.
+    //
+    // 5~10초로 줄이면 단발 유실이 그대로 오탐이 되고,
+    // 1분 이상이면 그만큼 늦게 안다. 기기팀 권장치(15~20초)와도 맞춘 값이다.
+    private static final long ONLINE_THRESHOLD_SECONDS = 20;
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -94,6 +101,24 @@ public class Member {
     @Column(name = "device_last_seen")
     private LocalDateTime deviceLastSeen;
 
+    // 이번 끊김에 대해 알림을 이미 보냈는지.
+    //
+    // 끊김 판정은 스케줄러가 5초마다 반복하므로, 이 표시가 없으면 기기가 꺼져 있는 내내
+    // 5초마다 같은 알림이 나간다. 신호가 다시 들어오면 false 로 되돌려
+    // 다음 끊김 때 한 번 더 알릴 수 있게 한다.
+    // 상태 악화 시에만 알리는 규칙(DeviceService)을 온라인/오프라인 축에 그대로 적용한 것이다.
+    //
+    // true 로 바꾸는 것은 이 엔티티가 아니라 MemberRepository.claimOfflineNotification 의
+    // 조건부 UPDATE 다. 여러 인스턴스가 같은 행을 동시에 집어도 한 번만 알리도록
+    // "아직 아무도 안 보냈고 여전히 끊겨 있을 때만" 이라는 조건을 DB 에서 판정해야 하기 때문이다.
+    //
+    // columnDefinition 으로 DEFAULT 를 박아 둔다. 이 프로젝트는 마이그레이션 도구 없이
+    // ddl-auto=update 로 컬럼을 추가하는데, DEFAULT 가 없으면 NOT NULL 컬럼을 기존 행이 있는
+    // 테이블에 붙이는 순간 DB·모드에 따라 배포가 실패한다.
+    @Column(name = "offline_notified", nullable = false,
+            columnDefinition = "boolean not null default false")
+    private boolean offlineNotified;
+
     @Builder
     public Member(Organization organization, User user, String name, Long age,
                   String address, String contact, String relationship, String deviceMac) {
@@ -112,6 +137,7 @@ public class Member {
         this.radar = null;
         this.thermal = null;
         // deviceLastSeen은 null 유지 (아직 기기 신호를 받은 적 없음)
+        this.offlineNotified = false;
     }
 
     // 라즈베리파이 데이터 수신 시 상태 업데이트
@@ -132,6 +158,8 @@ public class Member {
         // 기기가 보낸 timestamp가 아닌 "서버 수신 시각" 기준으로 고정
         // (기기 시계가 틀어져도 연결 생존 판정은 정확해야 하므로)
         this.deviceLastSeen = LocalDateTime.now();
+        // 신호가 다시 들어왔으므로 다음 끊김은 새 사건으로 취급한다.
+        this.offlineNotified = false;
     }
 
     /**
@@ -161,13 +189,19 @@ public class Member {
     }
 
     /**
+     * 끊김 판정 기준 시각. 마지막 수신이 이 시각보다 오래됐으면 끊긴 것으로 본다.
+     * 조회 쿼리와 isDeviceOnline 이 같은 기준을 쓰도록 한곳에 둔다.
+     */
+    public static LocalDateTime offlineDeadline() {
+        return LocalDateTime.now().minusSeconds(ONLINE_THRESHOLD_SECONDS);
+    }
+
+    /**
      * 디바이스 온라인 여부 (저장하지 않고 계산)
      * - deviceLastSeen이 null이면 false (한 번도 수신 없음 = 연결 대기 중)
-     * - 최근 ONLINE_THRESHOLD_MINUTES 이내 수신이면 true
+     * - 최근 ONLINE_THRESHOLD_SECONDS 이내 수신이면 true
      */
     public boolean isDeviceOnline() {
-        return this.deviceLastSeen != null
-                && this.deviceLastSeen.isAfter(
-                        LocalDateTime.now().minusMinutes(ONLINE_THRESHOLD_MINUTES));
+        return this.deviceLastSeen != null && this.deviceLastSeen.isAfter(offlineDeadline());
     }
 }
