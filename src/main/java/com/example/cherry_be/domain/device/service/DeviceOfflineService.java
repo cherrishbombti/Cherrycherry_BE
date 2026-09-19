@@ -1,14 +1,12 @@
 package com.example.cherry_be.domain.device.service;
 
 import com.example.cherry_be.domain.member.entity.Member;
-import com.example.cherry_be.domain.member.repository.MemberRepository;
-import com.example.cherry_be.domain.notification.entity.NotificationType;
-import com.example.cherry_be.domain.notification.service.NotificationService;
+import com.example.cherry_be.domain.member.service.MemberLivenessService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -21,34 +19,40 @@ import java.util.List;
  * 판정 기준은 기기 시계가 아닌 서버 수신 시각이다. 라즈베리파이가 NTP 동기에 실패하면
  * (부팅 직후·네트워크 복구 직후에 흔하다) 기기가 보낸 measured_at 이 엉뚱하게 찍혀
  * 멀쩡한 기기가 끊긴 것으로 잡힌다. Member.deviceLastSeen 주석 참고.
+ *
+ * 이 클래스에는 트랜잭션이 없다. 한 회차 전체를 한 트랜잭션으로 묶으면 한 건의 실패가
+ * 나머지 전원의 알림까지 롤백시키고, offline_notified 도 함께 되돌아가 5초 뒤 같은 배치가
+ * 같은 자리에서 다시 실패한다. 실제로 알려야 할 사람들이 영영 알림을 못 받게 되므로
+ * 트랜잭션 경계는 DeviceOfflineNotifier 가 피보호자 한 명 단위로 잡는다.
  */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class DeviceOfflineService {
 
-    private final MemberRepository memberRepository;
-    private final NotificationService notificationService;
+    private final MemberLivenessService memberLivenessService;
+    private final DeviceOfflineNotifier deviceOfflineNotifier;
 
     /**
-     * 끊긴 기기를 찾아 알림을 보내고, 보냈다고 표시한다.
+     * 끊긴 기기를 찾아 알림을 보낸다.
      *
-     * @return 이번 회차에 새로 알린 건수
+     * @return 이번 회차에 실제로 알린 건수
      */
-    @Transactional
     public int notifyNewlyOffline() {
-        List<Member> newlyOffline = memberRepository.findNewlyOffline(Member.offlineDeadline());
+        LocalDateTime deadline = Member.offlineDeadline();
+        List<Long> candidates = memberLivenessService.findNewlyOfflineIds(deadline);
 
-        for (Member member : newlyOffline) {
-            // 대응하는 fall_log 가 없다. fall_log 는 기기가 보낸 사건의 기록인데
-            // 단절은 "보내지 않았다는 사실"이라 남길 사건 자체가 없다.
-            // Notification.log 가 nullable 인 이유가 이것이다.
-            notificationService.create(member, null, NotificationType.DEVICE_OFFLINE);
-            member.markOfflineNotified();
-
-            log.info("기기 끊김 감지 - memberId: {}, deviceMac: {}, 마지막 수신: {}",
-                    member.getId(), member.getDeviceMac(), member.getDeviceLastSeen());
+        int notified = 0;
+        for (Long memberId : candidates) {
+            try {
+                if (deviceOfflineNotifier.notifyIfStillOffline(memberId, deadline)) {
+                    notified++;
+                }
+            } catch (Exception e) {
+                // 한 명이 실패해도 나머지는 알려야 한다. 다음 회차(5초 뒤)에 이 건만 다시 시도된다.
+                log.error("기기 끊김 알림 실패 - memberId: {}", memberId, e);
+            }
         }
-        return newlyOffline.size();
+        return notified;
     }
 }

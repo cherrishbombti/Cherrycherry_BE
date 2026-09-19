@@ -43,14 +43,12 @@ public class DeviceService {
         // 2. 상태 결정: event_type 있으면 파싱, 없으면(HEARTBEAT) 현재 상태 유지
         MemberStatus newStatus = resolveStatus(request, member, isEvent);
 
-        // 3. 센서 상태 OK/FAIL/UNKNOWN → Boolean(true/false/null)
-        // sensor_health 블록이 통째로 없으면 "이번엔 보고하지 않음"이므로 마지막 값을 유지한다.
-        // 블록이 있는데 UNKNOWN 이면 기기가 "판단 불가"를 보고한 것이므로 null 로 덮어쓴다.
-        // 둘을 구분하지 않으면 sensor_health 없는 payload 한 건에 마지막으로 알던 고장이 지워진다.
+        // 3. 센서 상태 → Boolean(정상 true / 고장 false / 확인된 적 없음 null)
+        // 보고가 없으면(블록 누락·필드 누락·UNKNOWN) 마지막으로 알던 값을 그대로 둔다. resolveSensor 참고.
         DeviceDataRequest.SensorHealth sh = request.getSensorHealth();
-        Boolean vibrator = sh == null ? member.getVibrator() : toBool(sh.getVibrator());
-        Boolean radar = sh == null ? member.getRadar() : toBool(sh.getRadar());
-        Boolean thermal = sh == null ? member.getThermal() : toBool(sh.getThermal());
+        Boolean vibrator = resolveSensor(sh == null ? null : sh.getVibrator(), member.getVibrator());
+        Boolean radar = resolveSensor(sh == null ? null : sh.getRadar(), member.getRadar());
+        Boolean thermal = resolveSensor(sh == null ? null : sh.getThermal(), member.getThermal());
 
         // 4. 상태 변화 로그·알림 적재 (EVENT 에서만. HEARTBEAT 은 상태 갱신만 → DB 행 안 쌓임)
         if (isEvent) {
@@ -124,18 +122,34 @@ public class DeviceService {
         }
     }
     /**
-     * 센서 상태 문자열 → Boolean.
-     * OK → true(정상), FAIL → false(고장), UNKNOWN/null → null(판단 불가).
-     * 기존 Member 의 Boolean 3-state(null=미수신) 의미와 그대로 맞물린다.
+     * 센서 한 칸의 상태를 결정한다.
+     *
+     * OK/FAIL 은 그대로 반영하고, "보고가 없는 것"은 전부 마지막 값을 유지한다.
+     * 보고가 없는 경우는 세 가지이며 서버 입장에서는 모두 "이번에 새로 알게 된 것이 없다" 로 같다.
+     *  - sensor_health 블록 자체가 없음
+     *  - 블록은 있으나 해당 필드가 빠짐
+     *  - UNKNOWN (기기가 "판단 불가"를 보고)
+     *
+     * UNKNOWN 을 null 로 덮어쓰면 마지막으로 알던 고장이 지워진다. 그러면 FAIL→UNKNOWN→FAIL 로
+     * 깜빡이는 센서가 FAIL 마다 새 고장으로 잡혀, 아래 전이 검사가 막으려던 중복 적재가 그대로 되살아난다.
+     * 고장난 센서일수록 UNKNOWN 을 자주 섞어 보내므로 실제로 일어나는 조합이다.
+     *
+     * 그래서 Member 의 null 은 "한 번도 확인된 적 없음"(등록 직후) 하나의 뜻만 갖는다.
+     *
+     * 허용값 밖의 문자열은 400 이다. 이 API 는 무인증이라 외부 입력을 신뢰할 수 없는데,
+     * 조용히 null 로 흘리면 오타 하나에 센서 감시가 통째로 멎고도 아무 신호가 남지 않는다.
      */
-    private Boolean toBool(String health) {
-        if ("OK".equalsIgnoreCase(health)) {
-            return true;
+    private Boolean resolveSensor(String reported, Boolean lastKnown) {
+        if (reported == null || "UNKNOWN".equalsIgnoreCase(reported)) {
+            return lastKnown;
         }
-        if ("FAIL".equalsIgnoreCase(health)) {
-            return false;
+        if ("OK".equalsIgnoreCase(reported)) {
+            return Boolean.TRUE;
         }
-        return null;
+        if ("FAIL".equalsIgnoreCase(reported)) {
+            return Boolean.FALSE;
+        }
+        throw new CustomException(ErrorCode.INVALID_SENSOR_HEALTH);
     }
 
     /**
@@ -162,7 +176,8 @@ public class DeviceService {
 
     /**
      * 이번 수신에서 새로 고장난 센서인지 판단한다.
-     * 정상(true)·미수신(null) → 고장(false) 만 true. 고장 지속(false → false)은 false.
+     * 정상(true)·확인된 적 없음(null) → 고장(false) 만 true. 고장 지속(false → false)은 false.
+     * resolveSensor 가 UNKNOWN 을 null 로 흘리지 않으므로 고장 구간 중간에 previous 가 풀리지 않는다.
      */
     private boolean isNewFailure(Boolean previous, Boolean current) {
         return Boolean.FALSE.equals(current) && !Boolean.FALSE.equals(previous);

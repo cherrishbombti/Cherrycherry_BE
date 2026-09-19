@@ -28,9 +28,10 @@ public class DeviceOfflineScheduler {
      * fixedDelay 라 이전 실행이 끝난 뒤 5초를 센다. 대상이 많아 한 회차가 길어져도
      * 실행이 겹치지 않는다. (fixedRate 는 겹칠 수 있다)
      *
-     * 서버가 여러 대로 늘어나면 인스턴스마다 실행되어 같은 피보호자에게 중복 알림이
-     * 나갈 수 있다. offline_notified 갱신이 먼저 커밋된 쪽이 이기지만 완전한 방어는
-     * 아니므로, 그때는 분산 락이나 단일 실행 보장이 필요하다.
+     * 서버가 여러 대로 늘어나도 인스턴스마다 실행되는 것 자체는 문제가 되지 않는다.
+     * 실제 발송은 MemberRepository.claimOfflineNotification 의 조건부 UPDATE 로
+     * 행 단위로 한 번만 확보되므로, 늦게 도착한 쪽은 0을 받고 아무것도 하지 않는다.
+     * 중복 실행이 낭비이긴 해서 언젠가 단일 실행 보장이 필요할 수 있지만, 중복 알림은 나가지 않는다.
      */
     @Scheduled(fixedDelay = 5_000)
     public void detectOfflineDevices() {
