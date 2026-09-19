@@ -191,6 +191,3 @@ secrets/
 secrets/
 *firebase-adminsdk*.json
 *service-account*.json
-
-# 실험 원시 로그는 논문 4장 수치의 근거라 예외로 둔다 (*.log 에 걸리므로)
-!docs/experiment-logs/**/*.log
