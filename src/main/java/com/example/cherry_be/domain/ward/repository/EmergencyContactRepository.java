@@ -20,4 +20,9 @@ public interface EmergencyContactRepository extends JpaRepository<EmergencyConta
 
     // 우선순위가 가장 높은(숫자 큰) 연락처 1건 — 다음 우선순위 계산용
     Optional<EmergencyContact> findTopByMemberOrderByPriorityDesc(Member member);
+
+    // 소유자까지 조건에 넣어 한 번에 찾는다.
+    // 찾아온 뒤 자바에서 소유권을 비교하면 "없음"과 "남의 것"이 서로 다른 응답이 되어
+    // 연락처 ID 의 존재 여부가 드러난다. 조건에 넣으면 둘 다 빈 결과라 구분되지 않는다.
+    Optional<EmergencyContact> findByIdAndMember(Long id, Member member);
 }

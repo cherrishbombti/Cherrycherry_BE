@@ -15,6 +15,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.concurrent.ThreadLocalRandom;
+import com.example.cherry_be.global.auth.OrgId;
 
 
 
@@ -29,6 +30,11 @@ public class OrganizationService {
     private final RefreshTokenService refreshTokenService;
 
     /** 로그인 ID로 기관 조회 (로그인 실패는 별도 코드를 쓰므로 여기서 처리하지 않는다) */
+    /** 인증된 기관 주체로 찾는다. 회원가입·로그인은 아직 인증 전이라 String 쪽을 쓴다. */
+    private Organization findOrganization(OrgId orgId) {
+        return findOrganization(orgId.value());
+    }
+
     private Organization findOrganization(String orgId) {
         return organizationRepository.findByOrgId(orgId)
                 .orElseThrow(() -> new CustomException(ErrorCode.ORG_NOT_FOUND));
@@ -120,7 +126,7 @@ public class OrganizationService {
      * [GET] /api/org/me
      */
     @Transactional(readOnly = true)
-    public OrgMeResponse getMyInfo(String orgId) {
+    public OrgMeResponse getMyInfo(OrgId orgId) {
         return OrgMeResponse.from(findOrganization(orgId));
     }
 
@@ -129,17 +135,17 @@ public class OrganizationService {
     // 기관 계정 기준 수신함이라 특정 피보호자에 종속되지 않는다.
 
     @Transactional(readOnly = true)
-    public NotificationPageResponse getNotifications(String orgId, Pageable pageable) {
+    public NotificationPageResponse getNotifications(OrgId orgId, Pageable pageable) {
         return notificationService.getNotifications(findOrganization(orgId), pageable);
     }
 
     @Transactional
-    public void readNotification(String orgId, Long notificationId) {
+    public void readNotification(OrgId orgId, Long notificationId) {
         notificationService.markAsRead(findOrganization(orgId), notificationId);
     }
 
     @Transactional
-    public int readAllNotifications(String orgId) {
+    public int readAllNotifications(OrgId orgId) {
         return notificationService.markAllAsRead(findOrganization(orgId));
     }
 

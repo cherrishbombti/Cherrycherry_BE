@@ -7,6 +7,8 @@ import com.example.cherry_be.domain.log.dto.LogPageResponse;
 import com.example.cherry_be.domain.member.dto.MemberDetailResponse;
 import com.example.cherry_be.domain.member.dto.MemberRegisterRequest;
 import com.example.cherry_be.domain.member.dto.MemberSummaryResponse;
+import com.example.cherry_be.domain.member.service.MemberHealthAccessService;
+import com.example.cherry_be.domain.member.service.MemberLogService;
 import com.example.cherry_be.domain.member.service.MemberService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -14,18 +16,21 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
 import java.util.List;
+import com.example.cherry_be.global.auth.OrgId;
 
 @RestController
 @RequestMapping("/api/targets")
 @RequiredArgsConstructor
 public class MemberController {
 
-    private final MemberService memberService;
+    // 기관 API 는 관심사별로 서비스가 나뉘어 있다.
+    private final MemberService memberService;                            // 등록·목록·상세·삭제
+    private final MemberLogService memberLogService;                      // 사건 이력
+    private final MemberHealthAccessService memberHealthAccessService;    // 건강정보
 
     /**
      * 피보호자 등록
@@ -33,9 +38,8 @@ public class MemberController {
      */
     @PostMapping
     public ResponseEntity<String> registerMember(
-            Authentication authentication,
+            OrgId orgId,
             @Valid @RequestBody MemberRegisterRequest request) {
-        String orgId = authentication.getName();
         Long savedId = memberService.registerMember(orgId, request);
         return ResponseEntity.ok("피보호자 등록 완료. ID: " + savedId);
     }
@@ -45,8 +49,7 @@ public class MemberController {
      * [GET] /api/targets
      */
     @GetMapping
-    public ResponseEntity<MemberSummaryResponse> getTargets(Authentication authentication) {
-        String orgId = authentication.getName();
+    public ResponseEntity<MemberSummaryResponse> getTargets(OrgId orgId) {
         return ResponseEntity.ok(memberService.getTargets(orgId));
     }
 
@@ -56,8 +59,7 @@ public class MemberController {
      */
     @GetMapping("/emergencies")
     public ResponseEntity<List<MemberSummaryResponse.MemberInfo>> getEmergencies(
-            Authentication authentication) {
-        String orgId = authentication.getName();
+            OrgId orgId) {
         return ResponseEntity.ok(memberService.getEmergencies(orgId));
     }
 
@@ -67,9 +69,8 @@ public class MemberController {
      */
     @GetMapping("/{targetId}")
     public ResponseEntity<MemberDetailResponse> getTargetDetail(
-            Authentication authentication,
+            OrgId orgId,
             @PathVariable Long targetId) {
-        String orgId = authentication.getName();
         return ResponseEntity.ok(memberService.getTargetDetail(orgId, targetId));
     }
 
@@ -79,9 +80,8 @@ public class MemberController {
      */
     @DeleteMapping("/{targetId}")
     public ResponseEntity<String> deleteMember(
-            Authentication authentication,
+            OrgId orgId,
             @PathVariable Long targetId) {
-        String orgId = authentication.getName();
         memberService.deleteMember(orgId, targetId);
         return ResponseEntity.ok("피보호자 삭제 완료");
     }
@@ -93,7 +93,7 @@ public class MemberController {
      */
     @GetMapping("/{targetId}/logs")
     public ResponseEntity<LogPageResponse> getTargetLogs(
-            Authentication authentication,
+            OrgId orgId,
             @PathVariable Long targetId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
@@ -102,7 +102,7 @@ public class MemberController {
 
         Pageable pageable = PageRequest.of(page, size);
         return ResponseEntity.ok(
-                memberService.getLogs(authentication.getName(), targetId, from, to, pageable));
+                memberLogService.getLogs(orgId, targetId, from, to, pageable));
     }
 
 
@@ -112,10 +112,10 @@ public class MemberController {
      */
     @GetMapping("/{targetId}/health")
     public ResponseEntity<HealthResponse> getTargetHealth(
-            Authentication authentication,
+            OrgId orgId,
             @PathVariable Long targetId) {
         return ResponseEntity.ok(
-                memberService.getHealth(authentication.getName(), targetId));
+                memberHealthAccessService.getHealth(orgId, targetId));
     }
 
 
@@ -125,11 +125,11 @@ public class MemberController {
      */
     @PutMapping("/{targetId}/health")
     public ResponseEntity<HealthResponse> putTargetHealth(
-            Authentication authentication,
+            OrgId orgId,
             @PathVariable Long targetId,
             @Valid @RequestBody HealthPutRequest request) {
         return ResponseEntity.ok(
-                memberService.putHealth(authentication.getName(), targetId, request));
+                memberHealthAccessService.putHealth(orgId, targetId, request));
     }
 
     /**
@@ -138,11 +138,11 @@ public class MemberController {
      */
     @PatchMapping("/{targetId}/health")
     public ResponseEntity<HealthResponse> patchTargetHealth(
-            Authentication authentication,
+            OrgId orgId,
             @PathVariable Long targetId,
             @Valid @RequestBody HealthPatchRequest request) {
         return ResponseEntity.ok(
-                memberService.patchHealth(authentication.getName(), targetId, request));
+                memberHealthAccessService.patchHealth(orgId, targetId, request));
     }
 
     /**
@@ -151,9 +151,9 @@ public class MemberController {
      */
     @DeleteMapping("/{targetId}/health")
     public ResponseEntity<Void> deleteTargetHealth(
-            Authentication authentication,
+            OrgId orgId,
             @PathVariable Long targetId) {
-        memberService.deleteHealth(authentication.getName(), targetId);
+        memberHealthAccessService.deleteHealth(orgId, targetId);
         return ResponseEntity.noContent().build();
     }
 }
