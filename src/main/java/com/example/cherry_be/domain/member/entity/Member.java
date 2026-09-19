@@ -107,7 +107,16 @@ public class Member {
     // 5초마다 같은 알림이 나간다. 신호가 다시 들어오면 false 로 되돌려
     // 다음 끊김 때 한 번 더 알릴 수 있게 한다.
     // 상태 악화 시에만 알리는 규칙(DeviceService)을 온라인/오프라인 축에 그대로 적용한 것이다.
-    @Column(name = "offline_notified", nullable = false)
+    //
+    // true 로 바꾸는 것은 이 엔티티가 아니라 MemberRepository.claimOfflineNotification 의
+    // 조건부 UPDATE 다. 여러 인스턴스가 같은 행을 동시에 집어도 한 번만 알리도록
+    // "아직 아무도 안 보냈고 여전히 끊겨 있을 때만" 이라는 조건을 DB 에서 판정해야 하기 때문이다.
+    //
+    // columnDefinition 으로 DEFAULT 를 박아 둔다. 이 프로젝트는 마이그레이션 도구 없이
+    // ddl-auto=update 로 컬럼을 추가하는데, DEFAULT 가 없으면 NOT NULL 컬럼을 기존 행이 있는
+    // 테이블에 붙이는 순간 DB·모드에 따라 배포가 실패한다.
+    @Column(name = "offline_notified", nullable = false,
+            columnDefinition = "boolean not null default false")
     private boolean offlineNotified;
 
     @Builder
@@ -151,11 +160,6 @@ public class Member {
         this.deviceLastSeen = LocalDateTime.now();
         // 신호가 다시 들어왔으므로 다음 끊김은 새 사건으로 취급한다.
         this.offlineNotified = false;
-    }
-
-    /** 끊김 알림을 보냈다고 표시한다. 다음 수신 때 updateFromDevice 가 되돌린다. */
-    public void markOfflineNotified() {
-        this.offlineNotified = true;
     }
 
     /**

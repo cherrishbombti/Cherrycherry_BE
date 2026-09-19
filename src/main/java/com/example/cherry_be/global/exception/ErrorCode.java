@@ -49,6 +49,7 @@ public enum ErrorCode {
     DEVICE_NOT_REGISTERED(HttpStatus.NOT_FOUND, "D001", "등록되지 않은 디바이스입니다."),
     INVALID_EVENT_TYPE(HttpStatus.BAD_REQUEST, "D002", "알 수 없는 이벤트 타입입니다."),
     INVALID_REPORT_TYPE(HttpStatus.BAD_REQUEST, "D003", "알 수 없는 report_type 입니다. (HEARTBEAT 또는 EVENT)"),
+    INVALID_SENSOR_HEALTH(HttpStatus.BAD_REQUEST, "D004", "알 수 없는 sensor_health 값입니다. (OK, FAIL, UNKNOWN)"),
 
     // Social Login
     UNSUPPORTED_SOCIAL_TYPE(HttpStatus.BAD_REQUEST, "S001", "지원하지 않는 소셜 로그인 타입입니다."),
