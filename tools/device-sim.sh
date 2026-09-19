@@ -169,6 +169,14 @@ DIED_NOTICE=0
 while [[ "$ELAPSED" -lt "$DURATION" ]]; do
     ELAPSED=$(( $(date +%s) - START ))
 
+    # 단절 시점 이후로는 기기가 꺼진 것이므로 EVENT 도 나가지 않는다.
+    # 이 검사가 없으면 "전송 중단" 을 찍고도 예약된 EVENT 가 계속 나가,
+    # 서버의 device_last_seen 이 갱신되어 단절 감지 자체가 리셋된다.
+    DEAD=0
+    if [[ "$DIE_AFTER" -gt 0 && "$ELAPSED" -ge "$DIE_AFTER" ]]; then
+        DEAD=1
+    fi
+
     # 지정 시각에 도달한 EVENT (상태 변화 시 즉시 전송)
     for i in "${!EVENTS[@]}"; do
         entry="${EVENTS[$i]}"
@@ -176,6 +184,11 @@ while [[ "$ELAPSED" -lt "$DURATION" ]]; do
         at="${entry%%:*}"; status="${entry##*:}"
         if [[ "$ELAPSED" -ge "$at" ]]; then
             EVENTS[$i]=""
+            if [[ "$DEAD" -eq 1 ]]; then
+                printf '%s  %-26s (기기가 꺼져 있어 전송되지 않음)\n' \
+                       "$(date '+%H:%M:%S')" "EVENT $status 취소"
+                continue
+            fi
             for ((n = 1; n <= EVENT_RETRIES; n++)); do
                 payload=$(printf '{"device_id":"%s","report_type":"EVENT","event_type":"%s","sensor_health":%s,"device":{"battery_pct":%s,"rssi":%s}}' \
                           "$DEVICE_ID" "$status" "$(sensor_health "$ELAPSED")" "$BATTERY" "$RSSI")
@@ -187,7 +200,7 @@ while [[ "$ELAPSED" -lt "$DURATION" ]]; do
         fi
     done
 
-    if [[ "$DIE_AFTER" -gt 0 && "$ELAPSED" -ge "$DIE_AFTER" ]]; then
+    if [[ "$DEAD" -eq 1 ]]; then
         if [[ "$DIED_NOTICE" -eq 0 ]]; then
             printf '%s  %-26s (이후 무신호 - 서버가 단절을 감지해야 한다)\n' \
                    "$(date '+%H:%M:%S')" "*** 전송 중단 ***"
