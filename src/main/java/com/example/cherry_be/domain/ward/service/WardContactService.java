@@ -75,13 +75,16 @@ public class WardContactService {
         emergencyContactRepository.delete(getOwnedContact(wardFinder.getWard(oauthEmail), contactId));
     }
 
-    /** 연락처를 찾고 현재 보호자의 피보호자 소유인지 검증한다. */
+    /**
+     * 현재 보호자의 피보호자에게 속한 연락처를 찾는다. 아니면 404.
+     *
+     * 남의 연락처를 403 으로 돌려주면 "그 ID 는 존재한다" 는 사실이 새어 나간다.
+     * 없는 ID 는 404, 남의 ID 는 403 이면 1 부터 훑어 남의 연락처 ID 범위와 개수를 알 수 있다.
+     * 소유자를 조회 조건에 넣어 두 경우를 같은 응답으로 만든다.
+     * (타인 리소스는 403 이 아닌 404 — 저장소 공통 규칙)
+     */
     private EmergencyContact getOwnedContact(Member ward, Long contactId) {
-        EmergencyContact contact = emergencyContactRepository.findById(contactId)
+        return emergencyContactRepository.findByIdAndMember(contactId, ward)
                 .orElseThrow(() -> new CustomException(ErrorCode.CONTACT_NOT_FOUND));
-        if (!contact.getMember().getId().equals(ward.getId())) {
-            throw new CustomException(ErrorCode.CONTACT_ACCESS_DENIED);
-        }
-        return contact;
     }
 }
