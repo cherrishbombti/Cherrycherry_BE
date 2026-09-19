@@ -92,7 +92,9 @@ class MemberTest {
         @DisplayName("수신하면 끊김 알림 표시가 풀린다")
         void clearsOfflineNotified() {
             Member member = newMember();
-            member.markOfflineNotified();
+            // true 로 만드는 것은 엔티티가 아니라 조건부 UPDATE(claimOfflineNotification)라
+            // 여기서는 그 결과 상태를 직접 심는다.
+            ReflectionTestUtils.setField(member, "offlineNotified", true);
             assertThat(member).extracting("offlineNotified").isEqualTo(true);
 
             member.updateFromDevice(MemberStatus.SAFE, true, true, true, null, null);

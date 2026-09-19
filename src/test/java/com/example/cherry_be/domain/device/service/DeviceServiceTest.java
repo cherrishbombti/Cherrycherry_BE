@@ -34,6 +34,7 @@ import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import org.springframework.test.util.ReflectionTestUtils;
 
 /**
  * 기기 데이터 수신 로직.
@@ -305,7 +306,9 @@ class DeviceServiceTest {
         @Test
         @DisplayName("수신이 재개되면 끊김 알림 표시를 되돌린다")
         void clearsOfflineNotifiedFlag() throws Exception {
-            member.markOfflineNotified();
+            // true 로 만드는 것은 엔티티가 아니라 조건부 UPDATE(claimOfflineNotification)라
+            // 여기서는 그 결과 상태를 직접 심는다.
+            ReflectionTestUtils.setField(member, "offlineNotified", true);
 
             receive("""
                     {"device_id":"%s","report_type":"HEARTBEAT"}""".formatted(DEVICE_ID));
