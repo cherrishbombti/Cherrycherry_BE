@@ -1,6 +1,6 @@
 package com.example.cherry_be.domain.user.controller;
 
-import com.example.cherry_be.domain.member.repository.MemberRepository;
+import com.example.cherry_be.domain.ward.service.WardFinder;
 import com.example.cherry_be.domain.user.dto.UserDto;
 import com.example.cherry_be.domain.user.helper.constants.SocialLoginType;
 import com.example.cherry_be.domain.user.service.OauthService;
@@ -30,7 +30,8 @@ public class OauthController {
     private final OauthService oauthService;
     private final UserService userService;
     private final JwtUtil jwtUtil;
-    private final MemberRepository memberRepository;
+    // 피보호자 등록 여부만 필요하다. 컨트롤러가 리포지토리를 직접 부르지 않도록 서비스를 거친다.
+    private final WardFinder wardFinder;
     private final RefreshTokenService refreshTokenService;
     private final RefreshCookie refreshCookie;
 
@@ -78,7 +79,7 @@ public class OauthController {
         LoginResult result = userService.loginOrSignup(userInfo);
         log.info(">> [4] DB 저장/조회 완료 :: 회원 이름 = {}", result.getUser().getName());
 
-        boolean hasWard = memberRepository.findByUser(result.getUser()).isPresent();
+        boolean hasWard = wardFinder.hasWard(result.getUser());
         boolean needsWardRegistration = !hasWard;
         log.info(">> [5] 피보호자 등록 여부 = {}, 등록 필요 = {}", hasWard, needsWardRegistration);
 
@@ -120,7 +121,7 @@ public class OauthController {
         UserDto userInfo = oauthService.getUserInfo(socialLoginType, accessToken);
         LoginResult result = userService.loginOrSignup(userInfo);
 
-        boolean hasWard = memberRepository.findByUser(result.getUser()).isPresent();
+        boolean hasWard = wardFinder.hasWard(result.getUser());
 
         String jwtToken = jwtUtil.createToken(result.getUser().getOauthEmail(), "ROLE_USER");
         String refreshToken = refreshTokenService.issue(result.getUser());
