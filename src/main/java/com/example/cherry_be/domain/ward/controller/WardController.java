@@ -12,6 +12,7 @@ import com.example.cherry_be.domain.ward.service.WardLogService;
 import com.example.cherry_be.domain.ward.service.WardNotificationService;
 import com.example.cherry_be.domain.ward.service.WardOrgLinkService;
 import com.example.cherry_be.domain.ward.service.WardService;
+import com.example.cherry_be.domain.ward.service.WardWithdrawService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
@@ -36,6 +37,7 @@ public class WardController {
     private final WardLogService wardLogService;                    // 사건 이력
     private final WardHealthService wardHealthService;              // 건강정보
     private final WardNotificationService wardNotificationService;  // 알림함
+    private final WardWithdrawService wardWithdrawService;          // 회원탈퇴
 
     /**
      * [POST] /api/wards/me — 피보호자 최초 등록
@@ -94,6 +96,15 @@ public class WardController {
     @DeleteMapping("/me/organization")
     public ResponseEntity<Void> unlinkOrganization(GuardianEmail guardian) {
         wardOrgLinkService.unlinkOrganization(guardian);
+        return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * [DELETE] /api/wards/me/account — 회원탈퇴(보호자 계정 삭제)
+     */
+    @DeleteMapping("/me/account")
+    public ResponseEntity<Void> withdraw(GuardianEmail guardian) {
+        wardWithdrawService.withdraw(guardian);
         return ResponseEntity.noContent().build();
     }
 
