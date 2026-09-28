@@ -1,0 +1,43 @@
+기기 시뮬레이터 시작
+  대상      : http://localhost:8080/api/device/data
+  device_id : AA:BB:CC:00:11:22
+  주기      : 5초,  실행 215초
+  유실률    : 40%
+  단절      : 150초 뒤 전송 중단
+
+15:14:04  HEARTBEAT                  HTTP 200
+15:14:09  HEARTBEAT 건너뜀        (유실 흉내)
+15:14:14  HEARTBEAT                  HTTP 200
+15:14:19  HEARTBEAT 건너뜀        (유실 흉내)
+15:14:24  HEARTBEAT                  HTTP 200
+15:14:29  HEARTBEAT                  HTTP 200
+15:14:34  HEARTBEAT 건너뜀        (유실 흉내)
+15:14:39  HEARTBEAT                  HTTP 200
+15:14:44  HEARTBEAT 건너뜀        (유실 흉내)
+15:14:49  HEARTBEAT 건너뜀        (유실 흉내)
+15:14:54  HEARTBEAT                  HTTP 200
+15:14:59  HEARTBEAT                  HTTP 200
+15:15:04  HEARTBEAT                  HTTP 200
+15:15:09  HEARTBEAT 건너뜀        (유실 흉내)
+15:15:14  HEARTBEAT                  HTTP 200
+15:15:19  HEARTBEAT 건너뜀        (유실 흉내)
+15:15:25  HEARTBEAT 건너뜀        (유실 흉내)
+15:15:29  HEARTBEAT 건너뜀        (유실 흉내)
+15:15:34  HEARTBEAT                  HTTP 200
+15:15:39  HEARTBEAT                  HTTP 200
+15:15:44  HEARTBEAT 건너뜀        (유실 흉내)
+15:15:49  HEARTBEAT                  HTTP 200
+15:15:54  HEARTBEAT 건너뜀        (유실 흉내)
+15:15:59  HEARTBEAT                  HTTP 200
+15:16:04  HEARTBEAT                  HTTP 200
+15:16:09  HEARTBEAT                  HTTP 200
+15:16:14  HEARTBEAT                  HTTP 200
+15:16:19  HEARTBEAT                  HTTP 200
+15:16:24  HEARTBEAT 건너뜀        (유실 흉내)
+15:16:29  HEARTBEAT 건너뜀        (유실 흉내)
+15:16:34  *** 전송 중단 ***      (이후 무신호 - 서버가 단절을 감지해야 한다)
+
+종료 (215초)
+  전송 성공 : 17   (EVENT 0 건 포함)
+  유실 흉내 : 13
+  거부/실패 : 0

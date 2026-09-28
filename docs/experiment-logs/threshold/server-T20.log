@@ -1,0 +1,5 @@
+2026-09-17T15:17:50.640+09:00  INFO 77060 --- [           main] com.example.cherry_be.Application        : Started Application in 2.171 seconds (process running for 2.306)
+2026-09-17T15:20:41.230+09:00  INFO 77060 --- [   scheduling-1] c.e.c.d.d.service.DeviceOfflineService   : 기기 끊김 감지 - memberId: 1, deviceMac: AA:BB:CC:00:11:22, 마지막 수신: 2026-09-17T15:20:18.742915
+2026-09-17T15:20:41.235+09:00  INFO 77060 --- [   scheduling-1] c.e.c.d.d.s.DeviceOfflineScheduler       : 기기 끊김 알림 1건 발송
+2026-09-17T15:20:41.260+09:00  INFO 77060 --- [         push-2] c.e.c.d.p.s.PushNotificationService      : 등록된 기기가 없어 푸시를 건너뜁니다 - notificationId: 38, userId: null, organizationId: 2
+2026-09-17T15:20:41.260+09:00  INFO 77060 --- [         push-1] c.e.c.d.p.s.PushNotificationService      : 등록된 기기가 없어 푸시를 건너뜁니다 - notificationId: 37, userId: 1, organizationId: null
