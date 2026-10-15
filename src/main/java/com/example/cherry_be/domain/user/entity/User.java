@@ -33,10 +33,24 @@ public class User {
     @Column(name = "cell_num")
     private String cellNum;
 
+    /**
+     * Apple 로그인 사용자의 Apple refresh token.
+     * 회원탈퇴 시 Apple 쪽 연결 해제(revoke)에 쓴다. Apple 이 아니면 null.
+     */
+    @Column(name = "apple_refresh_token", length = 1024)
+    private String appleRefreshToken;
+
     /** 회원가입 시 보호자 이름·연락처 갱신 */
     public void updateProfile(String name, String cellNum) {
         if (name != null && !name.isBlank()) this.name = name;
         if (cellNum != null && !cellNum.isBlank()) this.cellNum = cellNum;
+    }
+
+    /** Apple refresh token 저장(로그인할 때마다 최신값으로 교체) */
+    public void updateAppleRefreshToken(String appleRefreshToken) {
+        if (appleRefreshToken != null && !appleRefreshToken.isBlank()) {
+            this.appleRefreshToken = appleRefreshToken;
+        }
     }
 
 

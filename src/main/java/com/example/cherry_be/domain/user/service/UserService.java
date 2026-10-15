@@ -41,4 +41,11 @@ public class UserService {
                     return new LoginResult(userRepository.save(newUser), true); // 신규 유저
                 });
     }
+
+    /** Apple 로그인 시 받은 Apple refresh token 저장 (탈퇴 시 revoke 용) */
+    @Transactional
+    public void saveAppleRefreshToken(User user, String appleRefreshToken) {
+        userRepository.findById(user.getId())
+                .ifPresent(u -> u.updateAppleRefreshToken(appleRefreshToken));
+    }
 }
