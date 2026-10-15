@@ -7,6 +7,7 @@ import com.example.cherry_be.domain.push.repository.DeviceTokenRepository;
 import com.example.cherry_be.domain.user.entity.User;
 import com.example.cherry_be.domain.user.repository.UserRepository;
 import com.example.cherry_be.global.auth.GuardianEmail;
+import com.example.cherry_be.global.auth.RefreshTokenRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,12 +25,16 @@ public class WardWithdrawService {
     private final NotificationService notificationService;
     private final DeviceTokenRepository deviceTokenRepository;
     private final UserRepository userRepository;
-
+    private final RefreshTokenRepository refreshTokenRepository;
 
     @Transactional
     public void withdraw(GuardianEmail oauthEmail) {
         User guardian = wardFinder.getGuardian(oauthEmail);
 
+        // 0) 로그인 유지용 리프레시 토큰 삭제 (users 를 참조하므로 회원보다 먼저 지워야 함)
+        refreshTokenRepository.deleteAllByUser(guardian);
+
+        // 1) 이 보호자의 푸시 토큰 삭제
         // 1) 이 보호자의 푸시 토큰 삭제
         deviceTokenRepository.deleteAll(deviceTokenRepository.findByUser(guardian));
 

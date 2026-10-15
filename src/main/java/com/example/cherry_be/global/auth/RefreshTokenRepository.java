@@ -39,4 +39,9 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, Long
             + "WHERE r.expiresAt < :cutoff "
             + "   OR (r.revokedAt IS NOT NULL AND r.revokedAt < :cutoff)")
     int deleteDeadTokensBefore(@Param("cutoff") LocalDateTime cutoff);
+
+    /** 회원탈퇴 시 그 보호자의 리프레시 토큰을 모두 삭제한다 (남아 있으면 users FK 때문에 회원 삭제가 실패한다). */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("DELETE FROM RefreshToken r WHERE r.user = :user")
+    int deleteAllByUser(@Param("user") User user);
 }
