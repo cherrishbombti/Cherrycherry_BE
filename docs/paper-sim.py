@@ -9,6 +9,7 @@
   - 수신이 재개되면 통지 표시를 되돌림  (= Member.offlineNotified)
 
 실행: python3 docs/paper-sim.py
+서버 재생용 시퀀스 내보내기: python3 docs/paper-sim.py --export 30 seqs.json  (tools/replay-sim.py 참고)
 """
 import random, statistics
 from fractions import Fraction as F
@@ -63,6 +64,34 @@ def analytic(n, k, p=F(2, 5)):
     return p**k, hit, p**k + fp, fp
 
 
+def export(count, path):
+    """수치 실험의 앞쪽 시퀀스 count 개와 시퀀스별 모형 예측을 서버 재생용으로 내보낸다.
+
+    main() 과 같은 시드·같은 순서로 뽑으므로, 내보낸 시퀀스는 표 1 의 20,000회 중 앞 count 회다.
+    오탐 건수와 가림 여부는 확인 위상과 무관하다(k회 연속 누락이면 판정 창 (kP, (k+1)P] 에
+    확인 시각이 정확히 한 번 든다). 그래서 서버 재생과 시행 단위로 대조할 수 있다.
+    """
+    import json
+    random.seed(SEED)
+    trials = []
+    while len(trials) < count:
+        losses = [random.random() < LOSS for _ in range(N_TX)]
+        phase = random.uniform(0, POLL)
+        if all(losses):
+            continue
+        pred = {}
+        for k in (1, 2, 4, 8):
+            fp, ta, _ = simulate(losses, phase, k * P)
+            last_rx = max(i for i in range(N_TX) if not losses[i])
+            pred[str(int(k * P))] = {"fp": fp, "masked": ta is None, "last_rx": last_rx}
+        trials.append({"id": len(trials) + 1,
+                       "losses": "".join("1" if x else "0" for x in losses),
+                       "pred": pred})
+    with open(path, "w") as f:
+        json.dump({"seed": SEED, "period": P, "n_tx": N_TX, "loss": LOSS, "trials": trials}, f, indent=1)
+    print(f"시퀀스 {count}개를 {path} 에 저장했다 (seed={SEED}, 표 1 의 앞 {count}회)")
+
+
 def main():
     random.seed(SEED)
     ks = (1, 2, 4, 8)
@@ -105,4 +134,8 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    import sys
+    if len(sys.argv) == 4 and sys.argv[1] == "--export":
+        export(int(sys.argv[2]), sys.argv[3])     # python3 docs/paper-sim.py --export 30 seqs.json
+    else:
+        main()
