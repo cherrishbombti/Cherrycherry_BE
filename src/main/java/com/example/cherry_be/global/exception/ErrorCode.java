@@ -52,7 +52,8 @@ public enum ErrorCode {
 
     // Social Login
     UNSUPPORTED_SOCIAL_TYPE(HttpStatus.BAD_REQUEST, "S001", "지원하지 않는 소셜 로그인 타입입니다."),
-    SOCIAL_LOGIN_FAILED(HttpStatus.BAD_REQUEST, "S002", "소셜 로그인 처리 중 오류가 발생했습니다.");
+    SOCIAL_LOGIN_FAILED(HttpStatus.BAD_REQUEST, "S002", "소셜 로그인 처리 중 오류가 발생했습니다."),
+    APPLE_TOKEN_INVALID(HttpStatus.BAD_REQUEST, "S003", "Apple 로그인 정보를 확인할 수 없습니다.");
 
     private final HttpStatus status;
     private final String code;

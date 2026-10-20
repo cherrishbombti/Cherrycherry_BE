@@ -1,15 +1,19 @@
 package com.example.cherry_be.domain.user.controller;
 
 import com.example.cherry_be.domain.ward.service.WardFinder;
+import com.example.cherry_be.domain.user.dto.AppleLoginRequest;
 import com.example.cherry_be.domain.user.dto.UserDto;
 import com.example.cherry_be.domain.user.helper.constants.SocialLoginType;
 import com.example.cherry_be.domain.user.service.OauthService;
 import com.example.cherry_be.domain.user.service.UserService;
 import com.example.cherry_be.domain.user.service.UserService.LoginResult;
+import com.example.cherry_be.domain.user.service.social.AppleAuthClient;
+import com.example.cherry_be.domain.user.service.social.AppleAuthClient.AppleUser;
 import com.example.cherry_be.global.auth.JwtUtil;
 import com.example.cherry_be.global.auth.RefreshCookie;
 import com.example.cherry_be.global.auth.RefreshTokenService;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -34,6 +38,7 @@ public class OauthController {
     private final WardFinder wardFinder;
     private final RefreshTokenService refreshTokenService;
     private final RefreshCookie refreshCookie;
+    private final AppleAuthClient appleAuthClient;
 
     @Value("${frontend.redirect-url}")
     private String frontendRedirectUrl;
@@ -104,6 +109,49 @@ public class OauthController {
         }
 
         response.sendRedirect(redirectUrl);
+    }
+
+    /**
+     * [POST] iOS 앱 Sign in with Apple.
+     * 앱이 Apple 에서 받은 identityToken 을 검증하고 우리 서비스 토큰을 발급한다.
+     * 응답 형식은 앱 OAuth 콜백(cherrishbomb://login)과 같은 값을 JSON 으로 준다.
+     */
+    @PostMapping(value = "/apple")
+    public ResponseEntity<Map<String, Object>> appleLogin(@Valid @RequestBody AppleLoginRequest request) {
+        AppleUser apple = appleAuthClient.verifyIdentityToken(request.identityToken());
+        log.info(">> [Apple] identityToken 검증 성공");
+
+        // 이메일 가리기를 선택해도 Apple 은 중계 이메일(@privaterelay.appleid.com)을 준다.
+        // 혹시 없으면 Apple 고유 ID(sub)로 식별한다.
+        String loginId = (apple.email() != null && !apple.email().isBlank())
+                ? apple.email()
+                : "apple_" + apple.sub();
+        String name = (request.name() != null && !request.name().isBlank())
+                ? request.name()
+                : "Apple 사용자";
+
+        UserDto userInfo = UserDto.builder()
+                .oauthProvider("APPLE")
+                .oauthEmail(loginId)
+                .name(name)
+                .build();
+        LoginResult result = userService.loginOrSignup(userInfo);
+
+        // 탈퇴 시 Apple 연결 해제에 쓸 refresh token (키 미설정이면 null → 건너뜀)
+        String appleRefreshToken = appleAuthClient.exchangeRefreshToken(request.authorizationCode());
+        if (appleRefreshToken != null) {
+            userService.saveAppleRefreshToken(result.getUser(), appleRefreshToken);
+        }
+
+        boolean hasWard = wardFinder.hasWard(result.getUser());
+        String jwtToken = jwtUtil.createToken(result.getUser().getOauthEmail(), "ROLE_USER");
+        String refreshToken = refreshTokenService.issue(result.getUser());
+
+        return ResponseEntity.ok(Map.of(
+                "token", jwtToken,
+                "refreshToken", refreshToken,
+                "isNewUser", !hasWard
+        ));
     }
 
     /**

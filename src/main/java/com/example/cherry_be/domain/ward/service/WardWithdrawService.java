@@ -5,6 +5,8 @@ import com.example.cherry_be.domain.member.repository.MemberRepository;
 import com.example.cherry_be.domain.notification.service.NotificationService;
 import com.example.cherry_be.domain.push.repository.DeviceTokenRepository;
 import com.example.cherry_be.domain.user.entity.User;
+import com.example.cherry_be.domain.user.helper.constants.SocialLoginType;
+import com.example.cherry_be.domain.user.service.social.AppleAuthClient;
 import com.example.cherry_be.domain.user.repository.UserRepository;
 import com.example.cherry_be.global.auth.GuardianEmail;
 import com.example.cherry_be.global.auth.RefreshTokenRepository;
@@ -26,6 +28,7 @@ public class WardWithdrawService {
     private final DeviceTokenRepository deviceTokenRepository;
     private final UserRepository userRepository;
     private final RefreshTokenRepository refreshTokenRepository;
+    private final AppleAuthClient appleAuthClient;
 
     @Transactional
     public void withdraw(GuardianEmail oauthEmail) {
@@ -34,7 +37,6 @@ public class WardWithdrawService {
         // 0) 로그인 유지용 리프레시 토큰 삭제 (users 를 참조하므로 회원보다 먼저 지워야 함)
         refreshTokenRepository.deleteAllByUser(guardian);
 
-        // 1) 이 보호자의 푸시 토큰 삭제
         // 1) 이 보호자의 푸시 토큰 삭제
         deviceTokenRepository.deleteAll(deviceTokenRepository.findByUser(guardian));
 
@@ -45,7 +47,12 @@ public class WardWithdrawService {
             memberRepository.delete(ward);
         });
 
-        // 3) 보호자 계정 삭제
+        // 3) Apple 로그인 사용자면 Apple 쪽 연결도 해제 (실패해도 탈퇴는 진행)
+        if (guardian.getOauthProvider() == SocialLoginType.APPLE) {
+            appleAuthClient.revoke(guardian.getAppleRefreshToken());
+        }
+
+        // 4) 보호자 계정 삭제
         userRepository.delete(guardian);
     }
 }
